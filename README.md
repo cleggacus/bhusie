@@ -10,6 +10,22 @@
 
 This project is a real-time black hole raytracer. It uses multiple techniques such as an adative grid to reduce calculations, bvh to render meshes, a relativity sphere algorithm to allow the mesh to be rendered in the scene with the black hole and many adjustable settings such as integration methods and parameters, object settings, black hole settings and more.
 
+## Run
+To run this project you can simply run with cargo. For performance reasons its preferable to run with the release option since it is level 3 optimized. Note the rust log enviroment variable is enabled by the program by default so you do not have to add it to get logs.
+```sh
+cargo run --release
+```
+
+To generate the disk texture you can run the sub project `perlin` although it has already been pre rendered for the project.
+```sh
+cargo run -p perlin
+```
+
+## build
+```sh
+cargo build --release
+```
+
 ## Features
 - [ ] black hole
     - [x] euler intergrator
@@ -30,19 +46,8 @@ This project is a real-time black hole raytracer. It uses multiple techniques su
 - [x] wgpu intergration
 - [x] egui intergration
 
-## Run
-To run this project you can simply run with cargo. For performance reasons its preferable to run with the release option since it is level 3 optimized. Note the rust log enviroment variable is enabled by the program by default so you do not have to add it to get logs.
-```sh
-cargo run --release
-```
 
-To generate the disk texture you can run the sub project `perlin` although it has already been pre rendered for the project.
-```sh
-cargo run -p perlin
-```
+## Pipeline
+The general flow of render passes is shown in the image below.
 
-## build
-```sh
-cargo build --release
-```
-
+![Imgur](https://i.imgur.com/JxbeT6H.png)
