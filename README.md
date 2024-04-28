@@ -6,7 +6,7 @@
     A black hole ray tracer which can render in real time with meshes
 </p>
 
-![Imgur](https://i.imgur.com/eQK1RjL.png)
+![Imgur](https://i.imgur.com/U06JA9w.jpeg)
 
 This project is a real-time black hole raytracer. It uses multiple techniques such as an adative grid to reduce calculations, bvh to render meshes, a relativity sphere algorithm to allow the mesh to be rendered in the scene with the black hole and many adjustable settings such as integration methods and parameters, object settings, black hole settings and more.
 
