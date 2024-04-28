@@ -5,7 +5,6 @@ use crate::{renderer::{quad::Quad, vertex::Vertex}, ui::UI};
 pub struct ScreenPipelineDescriptor<'a> {
     pub device: &'a wgpu::Device,
     pub input_view: &'a wgpu::TextureView,
-    pub bloom_view: &'a wgpu::TextureView,
     pub format: wgpu::TextureFormat,
     pub resolution: (u32, u32)
 }
@@ -37,16 +36,6 @@ impl ScreenPipeline {
                     },
                     wgpu::BindGroupLayoutEntry {
                         binding: 1,
-                        visibility: wgpu::ShaderStages::FRAGMENT,
-                        ty: wgpu::BindingType::Texture {
-                            multisampled: false,
-                            view_dimension: wgpu::TextureViewDimension::D2,
-                            sample_type: wgpu::TextureSampleType::Float { filterable: true },
-                        },
-                        count: None,
-                    },
-                    wgpu::BindGroupLayoutEntry {
-                        binding: 2,
                         visibility: wgpu::ShaderStages::FRAGMENT,
                         ty: wgpu::BindingType::Texture {
                             multisampled: false,
@@ -124,12 +113,6 @@ impl ScreenPipeline {
                     binding: 1,
                     resource: wgpu::BindingResource::TextureView(
                         descriptor.input_view
-                    ),
-                },
-                wgpu::BindGroupEntry {
-                    binding: 2,
-                    resource: wgpu::BindingResource::TextureView(
-                        descriptor.bloom_view
                     ),
                 },
             ],

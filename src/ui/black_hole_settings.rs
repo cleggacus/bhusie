@@ -52,6 +52,18 @@ impl BlackHoleSettings {
                         ui.label("Relativity Radius:");
                         ui.add(egui::DragValue::new(&mut scene.black_hole.relativity_sphere_radius).clamp_range(0.0..=1000.0).speed(0.01));
                         ui.end_row(); 
+
+                        ui.label("Show Disk Texture");
+                        let mut show_disk_texture = scene.black_hole.show_disk_texture != 0;
+                        ui.checkbox(&mut show_disk_texture, "checked");
+                        scene.black_hole.show_disk_texture = show_disk_texture as i32; 
+                        ui.end_row(); 
+
+                        ui.label("Redshift");
+                        let mut show_red_shift = scene.black_hole.show_red_shift != 0;
+                        ui.checkbox(&mut show_red_shift, "checked");
+                        scene.black_hole.show_red_shift = show_red_shift as i32; 
+                        ui.end_row(); 
                     })
             });
     }

@@ -6,28 +6,38 @@ pub mod model;
 pub mod material;
 pub mod texture;
 pub mod triangle;
-pub mod bvh;
 
 use wgpu::{util::DeviceExt, PresentMode};
 use winit::window::Window;
 
-use crate::{renderer::pipelines::{bloom_pipline::{BloomDirection, BloomDownPipelineDescriptor}, sky_pipeline::SkyPipelineDescriptor}, scene::{blackhole::BlackHoleUniform, camera::CameraUniform, Scene}, ui::UI};
+use crate::{renderer::pipelines::{bloom_pipline::{BloomDirection, BloomDownPipelineDescriptor}, fxaa_pipline::{EdgeThresholdMax, EdgeThresholdMin, FXAAPipelineDescriptor}, hdr_pipeline::HDRPipelineDescriptor, mix_pipeline::{MixDetails, MixPipelineDescriptor}, sky_pipeline::SkyPipelineDescriptor}, scene::{blackhole::BlackHoleUniform, camera::CameraUniform, Scene}, ui::UI};
 
-use self::pipelines::{bloom_pipline::BloomPipeline, ray_pipeline::{RayDetails, RayPipeline, RayPipelineDescriptor}, screen_pipeline::{ScreenPassDescriptor, ScreenPipeline, ScreenPipelineDescriptor}, sky_pipeline::SkyPipeline};
+use self::pipelines::{bloom_pipline::BloomPipeline, fxaa_pipline::{FXAADetails, FXAADetailsUniform, FXAAPipeline}, hdr_pipeline::HDRPipeline, mix_pipeline::MixPipeline, ray_pipeline::{RayDetails, RayPipeline, RayPipelineDescriptor}, screen_pipeline::{ScreenPassDescriptor, ScreenPipeline, ScreenPipelineDescriptor}, sky_pipeline::SkyPipeline};
 
 pub struct Renderer<'a> {
     surface: wgpu::Surface<'a>,
     device: wgpu::Device,
     queue: wgpu::Queue,
     surface_config: wgpu::SurfaceConfiguration,
-    ray_pipelines: Vec<RayPipeline>,
     bloom_pipelines: Vec<BloomPipeline>,
     sky_pipeline: SkyPipeline,
+    hdr_pipeline: HDRPipeline,
     screen_pipeline: ScreenPipeline,
 
     pub present_mode: PresentMode,
+
+    pub fxaa_details: FXAADetails,
+    pub fxaa_details_uniform: FXAADetailsUniform,
+    fxaa_details_buffer: wgpu::Buffer,
+    fxaa_pipeline: FXAAPipeline,
+
+    pub mix_details: MixDetails,
+    mix_details_buffer: wgpu::Buffer,
+    mix_pipeline: MixPipeline,
+
     pub ray_details: RayDetails,
     ray_details_buffer: wgpu::Buffer,
+    ray_pipelines: Vec<RayPipeline>,
 
     black_hole_uniform: BlackHoleUniform,
     black_hole_buffer: wgpu::Buffer,
@@ -52,7 +62,7 @@ impl<'a> Renderer<'a> {
 
         let adapter = instance
             .request_adapter(&wgpu::RequestAdapterOptions {
-                power_preference: wgpu::PowerPreference::default(),
+                power_preference: wgpu::PowerPreference::HighPerformance,
                 force_fallback_adapter: false,
                 compatible_surface: Some(&surface),
             })
@@ -87,7 +97,7 @@ impl<'a> Renderer<'a> {
             format: surface_format,
             width: size.width,
             height: size.height,
-            present_mode: wgpu::PresentMode::AutoVsync,
+            present_mode: wgpu::PresentMode::AutoNoVsync,
             alpha_mode: surface_caps.alpha_modes[0],
             view_formats: vec![],
             desired_maximum_frame_latency: 2,
@@ -99,10 +109,9 @@ impl<'a> Renderer<'a> {
         let model_buffer = scene.models.create_buffer(&device);
 
         let ray_details = RayDetails {
+            angle_division_threshold: 1.0,
             step_size: 0.05,
-            max_iterations: 500,
-            show_disk_texture: 1,
-            show_red_shift: 1,
+            max_iterations: 900,
             ..RayDetails::default()
         };
 
@@ -155,9 +164,13 @@ impl<'a> Renderer<'a> {
 
         let mut ray_pipelines: Vec<RayPipeline> = Vec::new();
 
+        // let mut current_res = (9.0, 5.0); // 720p 64
+        // let mut current_res = (19.0, 10.0); // 720p 45
+        // let mut current_res = (39.0, 22.0); // 720p 45
+        // let mut current_res = (79.0, 44.0); // 720p 45
+        // let mut current_res = (159.0, 89.0); // 720p 45
+        let mut current_res = (239.0, 134.0); // 1080p
         let ray_multiplier = 2.0;
-        // let mut current_res = (160.0, 90.0); // 720p
-        let mut current_res = (239.0, 135.0); // 1080p
         let iters = 4;
 
         for i in 0..iters {
@@ -183,8 +196,8 @@ impl<'a> Renderer<'a> {
             ray_pipelines.push(ray_pipeline);
 
             if i < iters-1 {
-                current_res.0 = current_res.0 * ray_multiplier - 1.0;
-                current_res.1 = current_res.1 * ray_multiplier - 1.0;
+                current_res.0 = current_res.0 * ray_multiplier - (ray_multiplier - 1.0);
+                current_res.1 = current_res.1 * ray_multiplier - (ray_multiplier - 1.0);
             }
         }
 
@@ -197,7 +210,8 @@ impl<'a> Renderer<'a> {
             prev_texture_view: ray_pipelines.last().unwrap().output_view(),
         });
 
-        let bloom_pipeline_count = 4;
+
+        let bloom_pipeline_count = 5;
         let bloom_multiplier = 2.0;
         let mut bloom_pipelines: Vec<BloomPipeline> = Vec::new();
 
@@ -235,14 +249,68 @@ impl<'a> Renderer<'a> {
                 })
             )
         }
+
+        let mix_details = MixDetails {
+            mix_ratio: 0.6
+        };
+
+        let mix_details_buffer = device.create_buffer_init(
+            &wgpu::util::BufferInitDescriptor {
+                label: Some("Mix Details Buffer"),
+                contents: bytemuck::cast_slice(&[mix_details]),
+                usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+            }
+        );
         
+        log::info!("Loading mix pipeline");
+
+        let mix_pipeline = MixPipeline::new(MixPipelineDescriptor {
+            device: &device,
+            resolution: (current_res.0 as u32, current_res.1 as u32),
+            texture_view_1: sky_pipeline.output_view(),
+            texture_view_2: bloom_pipelines.last().unwrap().output_view(),
+            mix_buffer: &mix_details_buffer,
+        });
+
+        log::info!("Loading hdr pipeline");
+
+        let hdr_pipeline = HDRPipeline::new(HDRPipelineDescriptor {
+            device: &device,
+            resolution: (current_res.0 as u32, current_res.1 as u32),
+            texture_view: mix_pipeline.output_view(),
+        });
+
+        log::info!("Loading fxaa pipeline");
+
+        let fxaa_details = FXAADetails {
+            edge_threshold_min: EdgeThresholdMin::Medium,
+            edge_threshold_max: EdgeThresholdMax::Medium,
+            iterations: 12,
+            subpixel_quality: 0.75,
+        };
+
+        let fxaa_details_uniform = FXAADetailsUniform::default();
+
+        let fxaa_details_buffer = device.create_buffer_init(
+            &wgpu::util::BufferInitDescriptor {
+                label: Some("FXAA Details Buffer"),
+                contents: bytemuck::cast_slice(&[fxaa_details_uniform]),
+                usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+            }
+        );
+
+        let fxaa_pipeline = FXAAPipeline::new(FXAAPipelineDescriptor {
+            device: &device,
+            resolution: (current_res.0 as u32, current_res.1 as u32),
+            texture_view: hdr_pipeline.output_view(),
+            fxaa_buffer: &fxaa_details_buffer 
+        });
 
         log::info!("Loading screen pipeline");
 
         let screen_pipeline = ScreenPipeline::new(ScreenPipelineDescriptor { 
             device: &device, 
-            input_view: sky_pipeline.output_view(),
-            bloom_view: bloom_pipelines.last().unwrap().output_view(),
+            input_view: hdr_pipeline.output_view(),
             format: surface_format,
             resolution: (current_res.0 as u32, current_res.1 as u32),
         });
@@ -257,12 +325,22 @@ impl<'a> Renderer<'a> {
             surface_config,
             screen_pipeline,
             sky_pipeline,
-            ray_pipelines,
+            hdr_pipeline,
             bloom_pipelines,
             present_mode,
 
+            ray_pipelines,
             ray_details,
             ray_details_buffer,
+
+            fxaa_pipeline,
+            fxaa_details,
+            fxaa_details_uniform,
+            fxaa_details_buffer,
+
+            mix_pipeline,
+            mix_details,
+            mix_details_buffer,
 
             camera_uniform,
             camera_buffer,
@@ -292,9 +370,13 @@ impl<'a> Renderer<'a> {
         self.ray_details.material_count = scene.materials.size() as i32;
         self.ray_details.model_count = scene.models.size() as i32;
 
+        self.fxaa_details_uniform.update(&self.fxaa_details);
+
         self.queue.write_buffer(&self.black_hole_buffer, 0, bytemuck::cast_slice(&[self.black_hole_uniform]));
         self.queue.write_buffer(&self.camera_buffer, 0, bytemuck::cast_slice(&[self.camera_uniform]));
         self.queue.write_buffer(&self.ray_details_buffer, 0, bytemuck::cast_slice(&[self.ray_details]));
+        self.queue.write_buffer(&self.mix_details_buffer, 0, bytemuck::cast_slice(&[self.mix_details]));
+        self.queue.write_buffer(&self.fxaa_details_buffer, 0, bytemuck::cast_slice(&[self.fxaa_details_uniform]));
 
         scene.models.update_buffer(&self.queue, &self.model_buffer);
         scene.materials.update_buffer(&self.queue, &self.material_buffer);
@@ -317,10 +399,14 @@ impl<'a> Renderer<'a> {
         } 
 
         self.sky_pipeline.pass(&mut encoder);
+        self.fxaa_pipeline.pass(&mut encoder);
 
         for bp in &mut self.bloom_pipelines {
             bp.pass(&mut encoder);
         } 
+
+        self.mix_pipeline.pass(&mut encoder);
+        self.hdr_pipeline.pass(&mut encoder);
 
         self.screen_pipeline.pass(ScreenPassDescriptor {
             surface_config: &self.surface_config,

@@ -31,7 +31,7 @@ impl SkyPipeline {
             mip_level_count: 1,
             sample_count: 1,
             dimension: wgpu::TextureDimension::D2,
-            format: wgpu::TextureFormat::Rgba8Unorm,
+            format: wgpu::TextureFormat::Rgba16Float,
             usage: wgpu::TextureUsages::COPY_DST
                 | wgpu::TextureUsages::TEXTURE_BINDING
                 | wgpu::TextureUsages::STORAGE_BINDING,
@@ -41,7 +41,7 @@ impl SkyPipeline {
         let texture_view = texture.create_view(&Default::default());
 
         let sky_texture = texture::Texture::from_bytes(
-            descriptor.device, descriptor.queue, include_bytes!("../textures/sky.jpg"));
+            descriptor.device, descriptor.queue, include_bytes!("../textures/sky.png"));
 
         let bind_group_layout =
             descriptor.device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
@@ -52,7 +52,7 @@ impl SkyPipeline {
                         visibility: wgpu::ShaderStages::COMPUTE,
                         ty: wgpu::BindingType::StorageTexture {
                             access: wgpu::StorageTextureAccess::WriteOnly,
-                            format: wgpu::TextureFormat::Rgba8Unorm,
+                            format: texture.format(),
                             view_dimension: wgpu::TextureViewDimension::D2,
                         },
                         count: None,

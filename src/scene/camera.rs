@@ -1,5 +1,3 @@
-use std::f32::consts::PI;
-
 use cgmath::{InnerSpace, Quaternion, Rad, Rotation, Rotation3, Vector3};
 
 pub struct Camera {
@@ -11,9 +9,9 @@ pub struct Camera {
 impl Camera {
     pub fn new() -> Self {
         Self {
-            position: Vector3::new(0.0, -1.0, -10.0),
-            forward: Vector3::new(0.0, 0.0, 1.0),
-            fov: PI/3.0,
+            position: Vector3::new(0.0, -1.60, -18.0),
+            forward: Vector3::new(0.0, 0.08, 1.0),
+            fov: 1.05,
         }
     }
 

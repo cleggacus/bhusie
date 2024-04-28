@@ -9,8 +9,8 @@ pub struct RayDetails {
     pub integration_method: i32,
     pub step_size: f32,
     pub max_iterations: i32,
-    pub show_disk_texture: i32,
-    pub show_red_shift: i32,
+    pub angle_division_threshold: f32,
+    pub highlight_interpolation: i32,
 }
 
 pub struct RayPipelineDescriptor<'a> {
@@ -64,7 +64,10 @@ impl RayPipeline {
             descriptor.device, descriptor.queue, include_bytes!("../textures/colourtemp.jpg"));
 
         let disk_texture = texture::Texture::from_bytes(
-            descriptor.device, descriptor.queue, include_bytes!("../textures/disk_spiral.png"));
+            descriptor.device, descriptor.queue, include_bytes!("../textures/disk.png"));
+
+        let sky_texture = texture::Texture::from_bytes(
+            descriptor.device, descriptor.queue, include_bytes!("../textures/sky.png"));
 
         let bind_group_layout =
             descriptor.device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
@@ -187,6 +190,24 @@ impl RayPipeline {
                         },
                         count: None,
                     },
+                    // sky sampler
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 11,
+                        visibility: wgpu::ShaderStages::COMPUTE,
+                        ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
+                        count: None,
+                    },
+                    // sky texture
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 12,
+                        visibility: wgpu::ShaderStages::COMPUTE,
+                        ty: wgpu::BindingType::Texture {
+                            multisampled: false,
+                            view_dimension: wgpu::TextureViewDimension::D2,
+                            sample_type: wgpu::TextureSampleType::Float { filterable: true },
+                        },
+                        count: None,
+                    },
                 ],
             });
 
@@ -237,6 +258,14 @@ impl RayPipeline {
                 wgpu::BindGroupEntry {
                     binding: 10,
                     resource: wgpu::BindingResource::TextureView(descriptor.prev_texture_view),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 11,
+                    resource: wgpu::BindingResource::Sampler(sky_texture.sampler()),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 12,
+                    resource: wgpu::BindingResource::TextureView(sky_texture.view()),
                 },
             ],
         });

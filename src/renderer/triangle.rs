@@ -97,7 +97,7 @@ impl Model {
         Self {
             ident_size,
             ident,
-            position: Vector3::new(10.0, 10.0, 40.0),
+            position: Vector3::new(5.0, -5.0, 40.0),
             rotation: Vector3::zero(),
             point_count: 0,
             triangle_count: 0,
@@ -158,10 +158,10 @@ impl Model {
 
     fn update_bounds(&mut self, node_index: usize) {
         let node = &mut self.nodes[node_index];
-        let min = -999999.0;
-        let max = 999999.0;
-        node.min_corner = Vector3::new(max, max, max);
-        node.max_corner = Vector3::new(min, min, min);
+        let min = f32::MAX;
+        let max = f32::MIN;
+        node.min_corner = Vector3::new(min, min, min);
+        node.max_corner = Vector3::new(max, max, max);
 
         for i in 0..node.obj_count {
             let triangle = &mut self.triangles[self.bvh_lookup[(node.left_child + i) as usize] as usize];

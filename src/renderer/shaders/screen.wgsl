@@ -25,11 +25,9 @@ fn vs_main(
 
 @group(0) @binding(0) var s: sampler;
 @group(0) @binding(1) var t_input: texture_2d<f32>;
-@group(0) @binding(2) var t_bloom: texture_2d<f32>;
 
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
-    return 0.4 * textureSample(t_input, s, in.tex_coords) + 
-        0.6 * textureSample(t_bloom, s, in.tex_coords);
+    return textureSample(t_input, s, in.tex_coords);
 }
 

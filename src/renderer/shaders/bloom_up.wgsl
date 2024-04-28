@@ -27,15 +27,13 @@ var t_diffuse: texture_2d<f32>;
 @group(0) @binding(1)
 var s_diffuse: sampler;
 
-const INTENSITY: f32 = 2.0;
-
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     let screen_size = vec2<f32>(textureDimensions(t_diffuse));
     let tex_coord = vec2<i32>(in.tex_coords * screen_size);
 
-    let x = 0.01;
-    let y = 0.01;
+    let x = 0.005;
+    let y = 0.005;
 
     // Take 9 samples around current texel:
     // a - b - c

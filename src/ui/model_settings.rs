@@ -42,30 +42,10 @@ impl ModelSettings {
                             });
                             ui.end_row(); 
 
-                            ui.label("Visibility");
-
-                            let selected_text = match model.visible {
-                                0 => "Hide",
-                                1 => "Show",
-                                _ => ""
-                            };
-
-                            egui::ComboBox::from_id_source("model_visible")
-                                .selected_text(selected_text)
-                                .show_ui(ui, |ui| {
-                                    ui.selectable_value(
-                                        &mut model.visible,
-                                        0,
-                                        "Hide"
-                                    );
-
-                                    ui.selectable_value(
-                                        &mut model.visible,
-                                        1,
-                                        "Show"
-                                    );
-                                });
-
+                            ui.label("Model Visible");
+                            let mut visible = model.visible != 0;
+                            ui.checkbox(&mut visible, "checked");
+                            model.visible = visible as i32; 
                             ui.end_row(); 
                         }
 

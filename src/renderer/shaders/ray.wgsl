@@ -13,6 +13,8 @@ const MAX_MATERIALS = 8;
 @group(0) @binding(7) var t_temp: texture_2d<f32>;
 @group(0) @binding(8) var s_disk: sampler;
 @group(0) @binding(9) var t_disk: texture_2d<f32>;
+@group(0) @binding(11) var s_sky: sampler;
+@group(0) @binding(12) var t_sky: texture_2d<f32>;
 
 @group(0) @binding(10) var t_prev: texture_2d<f32>;
 
@@ -27,8 +29,8 @@ struct Details {
     integration_method: i32, // 0: eulers, 1: rk
     step_size: f32,
     max_iterations: i32,
-    show_disk_texture: i32,
-    show_red_shift: i32,
+    angle_division_threshold: f32,
+    highlight_interpolation: i32,
 }
 
 struct Ray {
@@ -89,6 +91,7 @@ struct Node {
 
 struct RenderState {
     color: vec3<f32>,
+    opacity: f32,
     t: f32,
     normal: vec3<f32>,
     hit: bool,
@@ -112,7 +115,9 @@ struct BlackHole {
     rotation_speed: f32,
     relativity_radius: f32,
     position: vec3<f32>,
+    show_disk_texture: i32,
     rotation: vec3<f32>,
+    show_red_shift: i32,
 }
 
 struct Sphere {
@@ -168,119 +173,63 @@ fn main(@builtin(global_invocation_id) GlobalInvocationID: vec3<u32>) {
 
     let t_prev_size: vec2<i32> = vec2<i32>(textureDimensions(t_prev));
 
-    if t_prev_size.x == 1 && t_prev_size.y == 1 {
+    if all(t_prev_size == vec2<i32>(1)) {
         // base case
         let ray = create_ray(screen_pos, screen_size);
         let color = trace_ray(ray);
         textureStore(color_buffer, screen_pos, color);
     } else {
         // recursive
-        let size_ratio = vec2<f32>(t_prev_size) / vec2<f32>(screen_size);
+        let sf = (screen_size - 1) / (t_prev_size - 1);
+
+        let size_ratio = vec2<f32>(t_prev_size) / vec2<f32>(screen_size + (sf - 1));
         let prev_pos: vec2<f32> = vec2<f32>(screen_pos) * size_ratio;
         let prev_pos_tl: vec2<f32> = floor(prev_pos);
 
-        if abs(prev_pos_tl.x - prev_pos.x) < 0.0001 && abs(prev_pos_tl.y - prev_pos.y) < 0.0001 {
-            let p = textureLoad(t_prev, vec2<i32>(prev_pos_tl), 0);
-            textureStore(color_buffer, screen_pos, p);
+        let color_tl = textureLoad(t_prev, vec2<i32>(prev_pos_tl), 0);
+
+        if all(abs(prev_pos_tl - prev_pos) < vec2<f32>(0.001)) {
+            textureStore(color_buffer, screen_pos, color_tl);
         } else {
-            //let prev_pos_tl1: vec2<f32> = clamp(prev_pos_tl + vec2<f32>(-1.0, 0.0), vec2<f32>(0.0, 0.0), vec2<f32>(t_prev_size));
-            //let prev_pos_t1l: vec2<f32> = clamp(prev_pos_tl + vec2<f32>(0.0, -1.0), vec2<f32>(0.0, 0.0), vec2<f32>(t_prev_size));
-            //let prev_pos_t1l1: vec2<f32> = clamp(prev_pos_tl + vec2<f32>(-1.0, -1.0), vec2<f32>(0.0, 0.0), vec2<f32>(t_prev_size));
-
             let prev_pos_bl: vec2<f32> = prev_pos_tl + vec2<f32>(0.0, 1.0);
-            //let prev_pos_bl1: vec2<f32> = clamp(prev_pos_bl + vec2<f32>(-1.0, 0.0), vec2<f32>(0.0, 0.0), vec2<f32>(t_prev_size));
-            //let prev_pos_b1l: vec2<f32> = clamp(prev_pos_bl + vec2<f32>(0.0, 1.0), vec2<f32>(0.0, 0.0), vec2<f32>(t_prev_size));
-            //let prev_pos_b1l1: vec2<f32> = clamp(prev_pos_bl + vec2<f32>(-1.0, 1.0), vec2<f32>(0.0, 0.0), vec2<f32>(t_prev_size));
-
             let prev_pos_tr: vec2<f32> = prev_pos_tl + vec2<f32>(1.0, 0.0);
-            //let prev_pos_tr1: vec2<f32> = clamp(prev_pos_tr + vec2<f32>(1.0, 0.0), vec2<f32>(0.0, 0.0), vec2<f32>(t_prev_size));
-            //let prev_pos_t1r: vec2<f32> = clamp(prev_pos_tr + vec2<f32>(0.0, -1.0), vec2<f32>(0.0, 0.0), vec2<f32>(t_prev_size));
-            //let prev_pos_t1r1: vec2<f32> = clamp(prev_pos_tr + vec2<f32>(1.0, -1.0), vec2<f32>(0.0, 0.0), vec2<f32>(t_prev_size));
-
             let prev_pos_br: vec2<f32> = prev_pos_tl + vec2<f32>(1.0, 1.0);
-            //let prev_pos_br1: vec2<f32> = clamp(prev_pos_br + vec2<f32>(1.0, 0.0), vec2<f32>(0.0, 0.0), vec2<f32>(t_prev_size));
-            //let prev_pos_b1r: vec2<f32> = clamp(prev_pos_br + vec2<f32>(0.0, 1.0), vec2<f32>(0.0, 0.0), vec2<f32>(t_prev_size));
-            //let prev_pos_b1r1: vec2<f32> = clamp(prev_pos_br + vec2<f32>(1.0, 1.0), vec2<f32>(0.0, 0.0), vec2<f32>(t_prev_size));
-
-            let color_tl = textureLoad(t_prev, vec2<i32>(prev_pos_tl), 0);
-            // let color_t1l = textureLoad(t_prev, vec2<i32>(prev_pos_t1l), 0);
-            // let color_tl1 = textureLoad(t_prev, vec2<i32>(prev_pos_tl1), 0);
-            // let color_t1l1 = textureLoad(t_prev, vec2<i32>(prev_pos_t1l1), 0);
-
             let color_bl = textureLoad(t_prev, vec2<i32>(prev_pos_bl), 0);
-            //let color_b1l = textureLoad(t_prev, vec2<i32>(prev_pos_b1l), 0);
-            //let color_bl1 = textureLoad(t_prev, vec2<i32>(prev_pos_bl1), 0);
-            //let color_b1l1 = textureLoad(t_prev, vec2<i32>(prev_pos_b1l1), 0);
-
             let color_tr = textureLoad(t_prev, vec2<i32>(prev_pos_tr), 0);
-            //let color_t1r = textureLoad(t_prev, vec2<i32>(prev_pos_t1r), 0);
-            //let color_tr1 = textureLoad(t_prev, vec2<i32>(prev_pos_tr1), 0);
-            //let color_t1r1 = textureLoad(t_prev, vec2<i32>(prev_pos_t1r1), 0);
-
             let color_br = textureLoad(t_prev, vec2<i32>(prev_pos_br), 0);
-            //let color_b1r = textureLoad(t_prev, vec2<i32>(prev_pos_b1r), 0);
-            //let color_br1 = textureLoad(t_prev, vec2<i32>(prev_pos_br1), 0);
-            //let color_b1r1 = textureLoad(t_prev, vec2<i32>(prev_pos_b1r1), 0);
 
-            if(
-                color_tl.a == 0.0 && color_tr.a == 0.0 && color_bl.a == 0.0 && color_br.a == 0.0
-                // color_t1l.a == 0.0 && color_t1r.a == 0.0 && color_b1l.a == 0.0 && color_b1r.a == 0.0 &&
-                // color_tl.a == 0.0 && color_tr1.a == 0.0 && color_bl1.a == 0.0 && color_br1.a == 0.0 &&
-                // color_t1l1.a == 0.0 && color_t1r1.a == 0.0 && color_b1l1.a == 0.0 && color_b1r1.a == 0.0
-            ) {
+            let tl_cart = spherical_to_cartesian(vec3<f32>(1.0, color_tl.rg));
+            let tr_cart = spherical_to_cartesian(vec3<f32>(1.0, color_tr.rg));
+            let bl_cart = spherical_to_cartesian(vec3<f32>(1.0, color_bl.rg));
+            let br_cart = spherical_to_cartesian(vec3<f32>(1.0, color_br.rg));
+
+            let angles_between = vec4<f32>(
+                angle_between(color_bl.rgb, color_tl.rgb),
+                angle_between(color_br.rgb, color_tr.rgb),
+                angle_between(color_tl.rgb, color_tr.rgb),
+                angle_between(color_bl.rgb, color_br.rgb)
+            );
+
+            let alphas = vec4<f32>(color_tl.a, color_tr.a, color_bl.a, color_br.a);
+
+            if all(alphas == vec4<f32>(0.0)) && all(angles_between < vec4<f32>(details.angle_division_threshold)) {
                 let t = prev_pos - prev_pos_tl;
 
-                // let pl1 = cubic_hermite(
-                //     color_t1l1.rg,
-                //     color_tl1.rg,
-                //     color_bl1.rg,
-                //     color_b1l1.rg,
-                //     t.y
-                // );
-
-                // let pr1 = cubic_hermite(
-                //     color_t1r1.rg,
-                //     color_tr1.rg,
-                //     color_br1.rg,
-                //     color_b1r1.rg,
-                //     t.y
-                // );
-
-                // let pl = cubic_hermite(
-                //     color_t1l.rg,
-                //     color_tl.rg,
-                //     color_bl.rg,
-                //     color_b1l.rg,
-                //     t.y
-                // );
-
-                // let pr = cubic_hermite(
-                //     color_t1r.rg,
-                //     color_tr.rg,
-                //     color_br.rg,
-                //     color_b1r.rg,
-                //     t.y
-                // );
-
-                // let p = cubic_hermite(
-                //     pr1,
-                //     pr,
-                //     pl,
-                //     pl1,
-                //     t.x
-                // );
-
-                let uv_tl = color_tl.rg;
-                let uv_tr = color_tr.rg;
-                let uv_bl = color_bl.rg;
-                let uv_br = color_br.rg;
+                let uv_tl = color_tl.rgb;
+                let uv_tr = color_tr.rgb;
+                let uv_bl = color_bl.rgb;
+                let uv_br = color_br.rgb;
 
                 let uv_l = uv_tl + (uv_bl - uv_tl) * t.y;
                 let uv_r = uv_tr + (uv_br - uv_tr) * t.y;
 
                 let p = uv_l + (uv_r - uv_l) * t.x;
 
-                textureStore(color_buffer, screen_pos, vec4<f32>(p, 0.0, 0.0));
+                if details.highlight_interpolation != 0 {
+                    textureStore(color_buffer, screen_pos, vec4<f32>(p, 0.0));
+                } else {
+                    textureStore(color_buffer, screen_pos, vec4<f32>(p, 0.0));
+                }
             } else {
                 let ray = create_ray(screen_pos, screen_size);
                 let color = trace_ray(ray);
@@ -289,6 +238,30 @@ fn main(@builtin(global_invocation_id) GlobalInvocationID: vec3<u32>) {
         }
     }
 
+}
+
+fn spherical_to_cartesian(spherical: vec3<f32>) -> vec3<f32> {
+    let sinTheta = sin(spherical.y);
+
+    return vec3<f32>(
+        spherical.x * sinTheta * cos(spherical.z),
+        spherical.x * sinTheta * sin(spherical.z),
+        spherical.x * cos(spherical.y),
+    );
+}
+
+fn cartesian_to_spherical(cartesian: vec3<f32>) -> vec3<f32> {
+    let rho = length(cartesian);
+    let theta = atan2(length(cartesian.xy), cartesian.z);
+    let phi = atan2(cartesian.y, cartesian.x);
+
+    return vec3<f32>(rho, theta, phi);
+}
+
+fn angle_between(v1: vec3<f32>, v2: vec3<f32>) -> f32 {
+    let dotProduct = dot(v1, v2);
+    let cosAngle = dotProduct / (length(v1) * length(v2));
+    return acos(cosAngle);
 }
 
 fn create_ray(screen_pos: vec2<i32>, screen_size: vec2<i32>) -> Ray {
@@ -314,7 +287,7 @@ fn trace_ray_model(ray: Ray, model_index: i32, t_min: f32, t_max: f32) -> Render
     closest_render_state.t = t_max;
 
     var node: Node = models[model_index].nodes[0];
-    var stack: array<Node, 32>;
+    var stack: array<Node, 19>;
     var stack_location: u32 = 0;
 
     while(true) {
@@ -500,38 +473,47 @@ fn next_ray_euler(in_ray: Ray, step_size: f32, h2: f32) -> Ray {
 }
 
 fn trace_ray(ray: Ray) -> vec4<f32> {
+    let bh_position = black_hole.position;
+    let bh_radius = black_hole.relativity_radius;
+
     var relativity = false;
 
-    if distance(ray.position, black_hole.position) < black_hole.relativity_radius {
+    if distance(ray.position, bh_position) < bh_radius {
         relativity = true;
     }
 
-    let t_max = 999999.0;
-    let t_min = 0.00001;
+    let t_max = 1e5;
+    let t_min = 1e-5;
     let h2 = pow(length(cross(ray.position, ray.direction)), 2.0);
 
     var curr_ray = ray;
     var prev_ray = ray;
 
-    let relativity_sphere = Sphere(black_hole.relativity_radius, black_hole.position, vec3<f32>(0.0));
+    let relativity_sphere = Sphere(bh_radius, bh_position, vec3<f32>(0.0));
 
-    var closest_render_state: RenderState;
+    var color_amount = 1.0;
+    var color = vec3<f32>(0.0);
+
+    var step_size = details.step_size;
 
     var rk_state = RKState(
         h2,
-        details.step_size,
+        step_size,
         0.0,
         curr_ray,
     );
 
-    var step_size = details.step_size;
+    var hit = false;
 
     for(var i = 0; i < details.max_iterations; i++) {
+        var closest_render_state: RenderState;
+        closest_render_state.t = t_max;
+
         if relativity {
             prev_ray = curr_ray;
 
             if details.integration_method == 0 {
-                curr_ray = next_ray_euler(curr_ray, details.step_size, h2);
+                curr_ray = next_ray_euler(curr_ray, step_size, h2);
             } else {
                 rk_state = next_ray_rk(rk_state);
                 curr_ray = rk_state.ray;
@@ -540,41 +522,54 @@ fn trace_ray(ray: Ray) -> vec4<f32> {
 
             prev_ray.direction = curr_ray.direction;
 
-            let ray_distance = distance(ray.position, black_hole.position);
+            let ray_distance = distance(ray.position, bh_position);
             closest_render_state = hit_ray(prev_ray, t_min, step_size, ray_distance, false);
 
-            if distance(curr_ray.position, black_hole.position) > black_hole.relativity_radius {
+            if distance(curr_ray.position, bh_position) > bh_radius {
                 relativity = false;
             }
         } else {
-            let ray_distance = distance(ray.position, black_hole.position);
-            let hit_sphere_state = hit_sphere(curr_ray, relativity_sphere, t_min, t_max);
+            let ray_distance = distance(ray.position, bh_position);
             let render_state = hit_ray(curr_ray, t_min, t_max, ray_distance, true);
+            let hit_sphere_state = hit_sphere(prev_ray, relativity_sphere, t_min, t_max);
+
+            if !hit_sphere_state.hit && !render_state.hit {
+                break;
+            }
 
             if hit_sphere_state.hit && hit_sphere_state.t < render_state.t {
                 curr_ray.position += curr_ray.direction * hit_sphere_state.t;
                 relativity = true;
             } else {
                 closest_render_state = render_state;
-                break;
             }
         }
 
         if closest_render_state.hit {
+            curr_ray.position += prev_ray.direction * closest_render_state.t;
+            color += color_amount * closest_render_state.opacity * clamp(closest_render_state.color, vec3<f32>(0.0), vec3<f32>(1.0));
+            color_amount *= 1.0 - closest_render_state.opacity;
+            hit = true;
+        }
+
+        if color_amount < 0.05 {
             break;
         }
     }
 
-
-    if closest_render_state.hit {
-        return vec4<f32>(closest_render_state.color, 1.0);
+    if color_amount > 0.05 {
+        let out = cartesian_to_spherical(curr_ray.direction.xzy);
+        let uv = vec2<f32>((out.z + 2.5*PI) / (2.0 * PI), (PI - out.y) / PI) % vec2<f32>(1.0);
+        let sky_color: vec3<f32> = textureSampleLevel(t_sky, s_sky, uv, 0.0).rgb;
+        let miss_color = pow(sky_color, vec3<f32>(5.0));
+        color += color_amount * miss_color;
     }
 
-    let theta = atan2(length(curr_ray.direction.xz), curr_ray.direction.y);
-    let phi = atan2(curr_ray.direction.z, curr_ray.direction.x);
-    let uv = vec2<f32>((phi + PI) / (2.0 * PI), theta / PI);
+    if hit {
+        return vec4<f32>(color, 1.0);
+    }
 
-    return vec4<f32>(uv, 0.0, 0.0);
+    return vec4<f32>(curr_ray.direction.xyz, 0.0);
 }
 
 fn rotate_vector_by_euler_angles(input_vector: vec3<f32>, euler_angles: vec3<f32>) -> vec3<f32> {
@@ -643,12 +638,13 @@ fn hit_black_hole(ray: Ray, black_hole: BlackHole, t_min: f32, t_max: f32, total
 
         disk_density  *= smoothstep(torus.inner_radius, torus.inner_radius + 1.0, dist);
         disk_density  *= inverseSqrt(dist);
-        let optical_depth = pow(10.0 * disk_density, 1.5);
+        let optical_depth = pow(6.0 * disk_density, 1.0);
 
+        render_state.opacity = optical_depth;
         render_state.color = vec3<f32>(optical_depth);
 
-        if details.show_disk_texture != 0 {
-            let r = dist / torus.outer_radius;
+        if black_hole.show_disk_texture != 0 {
+            let r = (dist  - black_hole.inner_radius) / (black_hole.outer_radius - black_hole.inner_radius);
             let relative_pos = (intersection - torus.position) / torus.outer_radius;
             let rotated_pos = match_up(render_state.normal, relative_pos);
             let angle = atan2(rotated_pos.z, rotated_pos.x);
@@ -656,12 +652,13 @@ fn hit_black_hole(ray: Ray, black_hole: BlackHole, t_min: f32, t_max: f32, total
             var uv = vec2<f32>(sin(angle + details.time*black_hole.rotation_speed) * r, cos(angle + details.time*black_hole.rotation_speed) * r);
             uv = (uv + 1.0) / 2.0;
 
-            let disk_color: vec3<f32> = textureSampleLevel(t_disk, s_disk, uv, 0.0).rgb;
+            let disk_color: vec4<f32> = textureSampleLevel(t_disk, s_disk, uv, 0.0);
 
-            render_state.color *= disk_color;
+            render_state.opacity *= 0.5 + disk_color.a;
+            render_state.color *= disk_color.rgb;
         }
 
-        if details.show_red_shift != 0 {
+        if black_hole.show_red_shift != 0 {
             let shiftVector = 0.6 * cross(normalize(intersection), normalize(vec3<f32>(0.0, -1.0, 0.0)));
             let velocity = dot(ray.direction, shiftVector);
             let doppler_shift = sqrt((1.0 - velocity) / (1.0 + velocity));
@@ -722,6 +719,7 @@ fn hit_plane(ray: Ray, plane: Plane, t_min: f32, t_max: f32) -> RenderState {
         }
 
         render_state.color = vec3<f32>(1.0);
+        render_state.opacity = 1.0;
         render_state.t = t;
         render_state.hit = true;
         return render_state;
@@ -746,7 +744,7 @@ fn hit_aabb(ray: Ray, node: Node, offset: vec3<f32>) -> f32 {
     var t_max_axis: f32 = min(min(t_max.x, t_max.y), t_max.z);
 
     if t_min_axis > t_max_axis || t_max_axis < 0 {
-        return 999999.0;
+        return 1e8;
     } else {
         return t_min_axis;
     }
@@ -783,6 +781,7 @@ fn hit_sphere(ray: Ray, sphere: Sphere, t_min: f32, t_max: f32) -> RenderState {
             let normal = normalize(intersectionPoint - sphere.position);
 
             render_state.color = sphere.color;
+            render_state.opacity = 1.0;
             render_state.t = t_closest;
             render_state.normal = normal;
             render_state.hit = true;
@@ -862,10 +861,11 @@ fn hit_triangle(ray: Ray, t_min: f32, t_max:f32, triangle: Triangle) -> RenderSt
     if (t > t_min && t < t_max) {
         let normal = (1.0 - u - v) * triangle.n1 + u * triangle.n2 + v * triangle.n3;
 
-        let color = -normal * 0.5 + 0.5;
+        let color = (-normal * 0.5 + 0.5);
 
         render_state.normal = n;
         render_state.color = color;
+        render_state.opacity = 1.0;
         render_state.t = t;
         render_state.hit = true;
         return render_state;

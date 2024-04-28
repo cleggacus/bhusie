@@ -1,6 +1,8 @@
+use std::f32::consts::PI;
+
 use wgpu::PresentMode;
 
-use crate::renderer::Renderer;
+use crate::renderer::{pipelines::fxaa_pipline::{EdgeThresholdMax, EdgeThresholdMin}, Renderer};
 
 fn present_mode_to_string(mode: PresentMode) -> String {
     match mode {
@@ -24,6 +26,104 @@ impl RendererSettings {
         }
     }
 
+    pub fn oed(ui: &mut egui::Ui, renderer: &mut Renderer) {
+        egui::Grid::new("oed_settings_grid")
+            .num_columns(2)
+            .spacing([40.0, 4.0])
+            .striped(true)
+            .show(ui, |ui| {
+                ui.label("OED Method:");
+
+                let selected_text = match renderer.ray_details.integration_method {
+                    0 => "Euler",
+                    1 => "Runge Kutta",
+                    _ => ""
+                };
+
+                egui::ComboBox::from_id_source("renderer_use_rk")
+                    .selected_text(selected_text)
+                    .show_ui(ui, |ui| {
+                        ui.selectable_value(
+                            &mut renderer.ray_details.integration_method,
+                            0,
+                            "Euler"
+                        );
+
+                        ui.selectable_value(
+                            &mut renderer.ray_details.integration_method,
+                            1,
+                            "Runge Kutta"
+                        );
+                    });
+
+                ui.end_row(); 
+
+                ui.label("Step size");
+                ui.add(egui::DragValue::new(&mut renderer.ray_details.step_size).speed(0.005).clamp_range(0.005..=1.0));
+                ui.end_row(); 
+
+                ui.label("Max Iterations");
+                ui.add(egui::DragValue::new(&mut renderer.ray_details.max_iterations));
+                ui.end_row(); 
+            });
+    }
+
+    pub fn fxaa(ui: &mut egui::Ui, renderer: &mut Renderer) {
+        egui::Grid::new("fxaa_settings_grid")
+            .num_columns(2)
+            .spacing([40.0, 4.0])
+            .striped(true)
+            .show(ui, |ui| {
+                ui.label("Edge Threshold Min");
+
+                let options = [
+                    EdgeThresholdMin::Low, 
+                    EdgeThresholdMin::Medium, 
+                    EdgeThresholdMin::High, 
+                    EdgeThresholdMin::Ultra, 
+                    EdgeThresholdMin::Extreme, 
+                ];
+
+                egui::ComboBox::from_id_source("edge_threshold_min")
+                    .selected_text(String::from(renderer.fxaa_details.edge_threshold_min))
+                    .show_ui(ui, |ui| {
+                        for option in options {
+                            ui.selectable_value(
+                                &mut renderer.fxaa_details.edge_threshold_min,
+                                option,
+                                String::from(option)
+                            );
+                        }
+                    });
+
+                ui.end_row(); 
+
+                ui.label("Edge Threshold Max");
+
+                let options = [
+                    EdgeThresholdMax::Low, 
+                    EdgeThresholdMax::Medium, 
+                    EdgeThresholdMax::High, 
+                    EdgeThresholdMax::Ultra, 
+                    EdgeThresholdMax::Extreme, 
+                ];
+
+                egui::ComboBox::from_id_source("edge_threshold_max")
+                    .selected_text(String::from(renderer.fxaa_details.edge_threshold_max))
+                    .show_ui(ui, |ui| {
+                        for option in options {
+                            ui.selectable_value(
+                                &mut renderer.fxaa_details.edge_threshold_max,
+                                option,
+                                String::from(option)
+                            );
+                        }
+                    });
+
+                ui.end_row(); 
+            });
+    }
+
     pub fn ui(&mut self, ctx: &egui::Context, renderer: &mut Renderer) {
         egui::Window::new("Renderer Settings")
             .open(&mut self.visible)
@@ -36,136 +136,49 @@ impl RendererSettings {
                     .show(ui, |ui| {
                         ui.label("Present Mode:");
 
-                        let selected_text = present_mode_to_string(renderer.present_mode);
+                        let options = [
+                            PresentMode::AutoVsync, 
+                            PresentMode::AutoNoVsync, 
+                            PresentMode::Mailbox,
+                            PresentMode::Fifo,
+                            PresentMode::FifoRelaxed,
+                            PresentMode::Immediate,
+                        ];
 
                         egui::ComboBox::from_id_source("renderer_present_mode")
-                            .selected_text(selected_text)
+                            .selected_text(present_mode_to_string(renderer.present_mode))
                             .show_ui(ui, |ui| {
-                                ui.selectable_value(
-                                    &mut renderer.present_mode,
-                                    PresentMode::AutoVsync,
-                                    present_mode_to_string(PresentMode::AutoVsync)
-                                );
-
-                                ui.selectable_value(
-                                    &mut renderer.present_mode,
-                                    PresentMode::AutoNoVsync,
-                                    present_mode_to_string(PresentMode::AutoNoVsync)
-                                );
-
-                                ui.selectable_value(
-                                    &mut renderer.present_mode,
-                                    PresentMode::Fifo,
-                                    present_mode_to_string(PresentMode::Fifo)
-                                );
-
-                                ui.selectable_value(
-                                    &mut renderer.present_mode,
-                                    PresentMode::FifoRelaxed,
-                                    present_mode_to_string(PresentMode::FifoRelaxed)
-                                );
-
-                                ui.selectable_value(
-                                    &mut renderer.present_mode,
-                                    PresentMode::Immediate,
-                                    present_mode_to_string(PresentMode::Immediate)
-                                );
-
-                                ui.selectable_value(
-                                    &mut renderer.present_mode,
-                                    PresentMode::Mailbox,
-                                    "Mailbox"
-                                );
+                                for option in options {
+                                    ui.selectable_value(
+                                        &mut renderer.present_mode,
+                                        option,
+                                        present_mode_to_string(option)
+                                    );
+                                }
                             });
 
                         ui.end_row(); 
 
-                        ui.label("OED Method:");
 
-                        let selected_text = match renderer.ray_details.integration_method {
-                            0 => "Euler",
-                            1 => "Runge Kutta",
-                            _ => ""
-                        };
-
-                        egui::ComboBox::from_id_source("renderer_use_rk")
-                            .selected_text(selected_text)
-                            .show_ui(ui, |ui| {
-                                ui.selectable_value(
-                                    &mut renderer.ray_details.integration_method,
-                                    0,
-                                    "Euler"
-                                );
-
-                                ui.selectable_value(
-                                    &mut renderer.ray_details.integration_method,
-                                    1,
-                                    "Runge Kutta"
-                                );
-                            });
-
+                        ui.label("Division Threshold");
+                        ui.add(egui::DragValue::new(&mut renderer.ray_details.angle_division_threshold).speed(0.001).clamp_range(0.0..=PI*2.0));
                         ui.end_row(); 
 
-                        ui.label("Step size");
-                        ui.add(egui::DragValue::new(&mut renderer.ray_details.step_size).speed(0.005).clamp_range(0.005..=1.0));
+                        ui.label("Highlight Interpolation");
+                        let mut highlight_interpolation_bool = renderer.ray_details.highlight_interpolation != 0;
+                        ui.checkbox(&mut highlight_interpolation_bool, "checked");
+                        renderer.ray_details.highlight_interpolation = highlight_interpolation_bool as i32; 
                         ui.end_row(); 
 
-                        ui.label("Max Iterations");
-                        ui.add(egui::DragValue::new(&mut renderer.ray_details.max_iterations));
-                        ui.end_row(); 
+                    });
 
-                        ui.label("Show Disk Texture");
+                    ui.collapsing("OED", |ui| {
+                        RendererSettings::oed(ui, renderer);
+                    });
 
-                        let selected_text = match renderer.ray_details.show_disk_texture {
-                            0 => "Hide",
-                            1 => "Show",
-                            _ => ""
-                        };
-
-                        egui::ComboBox::from_id_source("Show Disk Texture")
-                            .selected_text(selected_text)
-                            .show_ui(ui, |ui| {
-                                ui.selectable_value(
-                                    &mut renderer.ray_details.show_disk_texture,
-                                    0,
-                                    "Hide"
-                                );
-
-                                ui.selectable_value(
-                                    &mut renderer.ray_details.show_disk_texture,
-                                    1,
-                                    "Show"
-                                );
-                            });
-
-                        ui.end_row(); 
-
-                        ui.label("Redshift");
-
-                        let selected_text = match renderer.ray_details.show_red_shift {
-                            0 => "No Redshift",
-                            1 => "Redshift",
-                            _ => ""
-                        };
-
-                        egui::ComboBox::from_id_source("Redshift")
-                            .selected_text(selected_text)
-                            .show_ui(ui, |ui| {
-                                ui.selectable_value(
-                                    &mut renderer.ray_details.show_red_shift,
-                                    0,
-                                    "No Redshift"
-                                );
-
-                                ui.selectable_value(
-                                    &mut renderer.ray_details.show_red_shift,
-                                    1,
-                                    "Redshift"
-                                );
-                            });
-
-                        ui.end_row(); 
-                    })
+                    ui.collapsing("FXAA", |ui| {
+                        RendererSettings::fxaa(ui, renderer);
+                    });
             });
     }
 

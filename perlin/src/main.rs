@@ -57,42 +57,45 @@ fn perlin(x: f32, y: f32) -> f32 {
 }
 
 
-fn main() {
-    const IMAGE_WIDTH: u32 = 1000;
-    const IMAGE_HEIGHT: u32 = 1000;
-    const DENSITY: u32 = 30;
+fn generate(width: u32, height: u32, density: u32) -> ImageBuffer<Rgba<u8>, Vec<u8>> {
+    let mut buffer = ImageBuffer::new(width, height);
 
-    let mut buffer = ImageBuffer::new(IMAGE_WIDTH, IMAGE_HEIGHT);
+    let density = density as f32 / width as f32;
 
-    let density = DENSITY as f32 / IMAGE_WIDTH as f32;
-
-    for x in 0..IMAGE_WIDTH {
-        for y in 0..IMAGE_HEIGHT {
+    for x in 0..width {
+        for y in 0..height {
             let rx = x as f32 * density ;
             let ry = y as f32 * density;
             let val = (perlin(rx, ry) * 256.0) as u8;
 
-            buffer.put_pixel(x, y, Rgba([255, 255, 255, val]));
+            buffer.put_pixel(x, y, Rgba([val, val, val, val]));
         }
     }
 
-    let mut new_buffer = ImageBuffer::new(IMAGE_WIDTH, IMAGE_HEIGHT);
+    buffer
+}
 
-    for x in 0..IMAGE_WIDTH {
-        for y in 0..IMAGE_HEIGHT {
-            let rx = (x as f32 / IMAGE_WIDTH as f32) * 2.0 - 1.0;
-            let ry = (y as f32 / IMAGE_HEIGHT as f32) * 2.0 - 1.0;
+fn spiral(buffer: ImageBuffer<Rgba<u8>, Vec<u8>>) -> ImageBuffer<Rgba<u8>, Vec<u8>> {
+    let image_width = buffer.width();
+    let image_height = buffer.height();
+
+    let mut new_buffer = ImageBuffer::new(image_width, image_height);
+
+    for x in 0..image_width {
+        for y in 0..image_height {
+            let rx = (x as f32 / image_width as f32) * 2.0 - 1.0;
+            let ry = (y as f32 / image_height as f32) * 2.0 - 1.0;
 
             let r = (rx.powi(2) + ry.powi(2)).sqrt();
             let theta = ry.atan2(rx);
 
-            let theta = ((theta + PI + r.powf(0.7) * PI * 2.0) % (2.0 * PI)) - PI;
+            let theta = ((theta + PI + r.powf(0.25) * PI * 10.0) % (2.0 * PI)) - PI;
 
             let rx = r * theta.cos();
             let ry = r * theta.sin();
 
-            let nx = ((rx * 0.5 + 0.5) * IMAGE_WIDTH as f32) as u32 % IMAGE_WIDTH ;
-            let ny = ((ry * 0.5 + 0.5) * IMAGE_HEIGHT as f32) as u32 % IMAGE_HEIGHT;
+            let nx = ((rx * 0.5 + 0.5) * image_width as f32) as u32 % image_width;
+            let ny = ((ry * 0.5 + 0.5) * image_height as f32) as u32 % image_height;
 
             let pixel = buffer.get_pixel(nx, ny);
 
@@ -100,6 +103,46 @@ fn main() {
         }
     }
 
-    buffer.save("./src/renderer/textures/perlin.png").unwrap();
-    new_buffer.save("./src/renderer/textures/disk.png").unwrap();
+    new_buffer
+}
+
+
+fn merge(buffer1: ImageBuffer<Rgba<u8>, Vec<u8>>, buffer2: ImageBuffer<Rgba<u8>, Vec<u8>>, amount: f32) -> ImageBuffer<Rgba<u8>, Vec<u8>> {
+    let image_width = buffer1.width();
+    let image_height = buffer1.height();
+
+    let mut new_buffer = ImageBuffer::new(image_width, image_height);
+
+    for x in 0..image_width {
+        for y in 0..image_height {
+            let p1 = buffer1.get_pixel(x, y);
+            let p2 = buffer2.get_pixel(x, y);
+
+            new_buffer.put_pixel(x, y, Rgba([
+                (p1[0] as f32 * amount + p2[0] as f32 * (1.0 - amount)) as u8,
+                (p1[1] as f32 * amount + p2[1] as f32 * (1.0 - amount)) as u8,
+                (p1[2] as f32 * amount + p2[2] as f32 * (1.0 - amount)) as u8,
+                (p1[3] as f32 * amount + p2[3] as f32 * (1.0 - amount)) as u8,
+            ]));
+        }
+    }
+
+    new_buffer
+}
+
+fn main() {
+    let buffer_0 = generate(1000, 1000, 4);
+    let spiral_0 = spiral(buffer_0);
+    let buffer_1 = generate(1000, 1000, 10);
+    let spiral_1 = spiral(buffer_1);
+    let buffer_2 = generate(1000, 1000, 30);
+    let spiral_2 = spiral(buffer_2);
+    let buffer_3 = generate(1000, 1000, 100);
+    let spiral_3 = spiral(buffer_3);
+
+    let m1 = merge(spiral_3, spiral_2, 0.5);
+    let m2 = merge(m1, spiral_1, 0.5);
+    let m3 = merge(m2, spiral_0, 0.5);
+
+    m3.save("./src/renderer/textures/disk.png").unwrap();
 }
