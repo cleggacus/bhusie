@@ -220,10 +220,10 @@ fn main(@builtin(global_invocation_id) GlobalInvocationID: vec3<u32>) {
                 let uv_bl = color_bl.rgb;
                 let uv_br = color_br.rgb;
 
-                let uv_l = uv_tl + (uv_bl - uv_tl) * t.y;
-                let uv_r = uv_tr + (uv_br - uv_tr) * t.y;
+                let uv_t = mix(uv_tl, uv_tr, t.x);
+                let uv_b = mix(uv_bl, uv_br, t.x);
 
-                let p = uv_l + (uv_r - uv_l) * t.x;
+                let p = mix(uv_t, uv_b, t.y);
 
                 if details.highlight_interpolation != 0 {
                     textureStore(color_buffer, screen_pos, vec4<f32>(p, 0.0));
@@ -265,9 +265,9 @@ fn angle_between(v1: vec3<f32>, v2: vec3<f32>) -> f32 {
 }
 
 fn create_ray(screen_pos: vec2<i32>, screen_size: vec2<i32>) -> Ray {
-    let sm = min(screen_size.x, screen_size.y);
-    let increment: f32 = 1.0 / f32(min(screen_size.x, screen_size.y));
-    let pos = 2.0 * (vec2<f32>(screen_pos) - vec2<f32>(screen_size) / 2.0) * increment;
+    let sm = min(screen_size.x - 1, screen_size.y - 1);
+    let increment: f32 = 1.0 / f32(sm);
+    let pos = 2.0 * (vec2<f32>(screen_pos) - vec2<f32>(screen_size - vec2<i32>(1)) / 2.0) * increment;
 
 
     let plane_up = vec3<f32>(0.0, -1.0, 0.0);
@@ -391,7 +391,6 @@ fn hit_ray(ray: Ray, t_min: f32, t_max: f32, ray_distance: f32, render_triangles
 }
 
 struct RKState {
-    h2: f32,
     h: f32,
     e_max: f32,
     ray: Ray,
@@ -415,11 +414,11 @@ fn next_ray_rk(rk_state_in: RKState) -> RKState {
     var k_5 = vec3<f32>(0.0);
     var k_6 = vec3<f32>(0.0);
 
-    let dydx = f(ray.position, rk_state.h2, dist);
+    let h2 = pow(length(cross(ray.position, ray.direction)), 2.0);
+
+    let dydx = f(ray.position, h2, dist);
     let yscal = vec3<f32>(1.0); //abs(ray.position) + abs(dydx * h);
     let eps = 1.0;
-
-    let h2 = rk_state.h2;
 
     while true {
         let h = rk_state.h;
@@ -443,13 +442,15 @@ fn next_ray_rk(rk_state_in: RKState) -> RKState {
         let h_temp = 0.9 * h / pow(rk_state.e_max, 0.25);
 
         if h >= 0.0 {
-            rk_state.h = max(h_temp, h*0.1);
+            rk_state.h = max(h_temp, h);
         } else {
-            rk_state.h = min(h_temp, h*0.1);
+            rk_state.h = min(h_temp, h);
         }
     }
 
     rk_state.ray.direction += rk_state.h * (b_a_1*k_1 + b_a_2*k_2 + b_a_3*k_3 + b_a_4*k_4 + b_a_5*k_5 + b_a_6*k_6);
+    rk_state.ray.direction = normalize(rk_state.ray.direction);
+
     rk_state.ray.position += ray.direction * rk_state.h;
 
     if rk_state.e_max > 0.00002 {
@@ -461,12 +462,16 @@ fn next_ray_rk(rk_state_in: RKState) -> RKState {
     return rk_state;
 }
 
-fn next_ray_euler(in_ray: Ray, step_size: f32, h2: f32) -> Ray {
+fn next_ray_euler(in_ray: Ray, step_size: f32) -> Ray {
     var ray = in_ray;
+
+    let h2 = pow(length(cross(ray.position, ray.direction)), 2.0);
 
     let dist = length(ray.position - black_hole.position);
 
     ray.direction += f(ray.position, h2, dist) * step_size;
+    ray.direction = normalize(ray.direction);
+
     ray.position += ray.direction * step_size;
 
     return ray;
@@ -484,7 +489,6 @@ fn trace_ray(ray: Ray) -> vec4<f32> {
 
     let t_max = 1e5;
     let t_min = 1e-5;
-    let h2 = pow(length(cross(ray.position, ray.direction)), 2.0);
 
     var curr_ray = ray;
     var prev_ray = ray;
@@ -497,7 +501,6 @@ fn trace_ray(ray: Ray) -> vec4<f32> {
     var step_size = details.step_size;
 
     var rk_state = RKState(
-        h2,
         step_size,
         0.0,
         curr_ray,
@@ -513,7 +516,7 @@ fn trace_ray(ray: Ray) -> vec4<f32> {
             prev_ray = curr_ray;
 
             if details.integration_method == 0 {
-                curr_ray = next_ray_euler(curr_ray, step_size, h2);
+                curr_ray = next_ray_euler(curr_ray, step_size);
             } else {
                 rk_state = next_ray_rk(rk_state);
                 curr_ray = rk_state.ray;
