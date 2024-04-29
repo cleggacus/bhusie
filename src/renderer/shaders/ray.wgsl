@@ -97,18 +97,6 @@ struct RenderState {
     hit: bool,
 }
 
-struct Plane {
-    position: vec3<f32>,
-    rotation: vec3<f32>,
-}
-
-struct Torus2D {
-    inner_radius: f32,
-    outer_radius: f32,
-    position: vec3<f32>,
-    rotation: vec3<f32>,
-}
-
 struct BlackHole {
     inner_radius: f32,
     outer_radius: f32,
@@ -116,7 +104,7 @@ struct BlackHole {
     relativity_radius: f32,
     position: vec3<f32>,
     show_disk_texture: i32,
-    rotation: vec3<f32>,
+    normal: vec3<f32>,
     show_red_shift: i32,
 }
 
@@ -361,15 +349,7 @@ fn trace_ray_model(ray: Ray, model_index: i32, t_min: f32, t_max: f32) -> Render
 }
 
 fn hit_ray(ray: Ray, t_min: f32, t_max: f32, ray_distance: f32, render_triangles: bool) -> RenderState {
-    var closest_render_state: RenderState;
-    closest_render_state.t = t_max;
-
-    let render_state = hit_black_hole(ray, black_hole, t_min, t_max, ray_distance);
-
-    if render_state.hit && render_state.t < closest_render_state.t {
-        closest_render_state = render_state;
-
-    }
+    var closest_render_state = hit_black_hole(ray, t_min, t_max, ray_distance);
 
     if render_triangles {
         for(var i = 0; i < details.model_count; i++) {
@@ -397,7 +377,7 @@ struct RKState {
 }
 
 fn f(rayPos: vec3<f32>, h2: f32, dist: f32) -> vec3<f32> {
-    return -1.5 * h2 * rayPos / pow(pow(dist, 2.0), 2.5);
+    return -1.5 * h2 * (rayPos-black_hole.position) / pow(pow(dist, 2.0), 2.5);
 }
 
 fn next_ray_rk(rk_state_in: RKState) -> RKState {
@@ -478,22 +458,17 @@ fn next_ray_euler(in_ray: Ray, step_size: f32) -> Ray {
 }
 
 fn trace_ray(ray: Ray) -> vec4<f32> {
-    let bh_position = black_hole.position;
-    let bh_radius = black_hole.relativity_radius;
-
     var relativity = false;
 
-    if distance(ray.position, bh_position) < bh_radius {
+    if distance(ray.position, black_hole.position) < black_hole.relativity_radius {
         relativity = true;
     }
 
-    let t_max = 1e5;
-    let t_min = 1e-5;
+    let t_max = 1e8;
+    let t_min = 1e-8;
 
     var curr_ray = ray;
     var prev_ray = ray;
-
-    let relativity_sphere = Sphere(bh_radius, bh_position, vec3<f32>(0.0));
 
     var color_amount = 1.0;
     var color = vec3<f32>(0.0);
@@ -506,7 +481,7 @@ fn trace_ray(ray: Ray) -> vec4<f32> {
         curr_ray,
     );
 
-    var hit = false;
+    let ray_distance = distance(ray.position, black_hole.position);
 
     for(var i = 0; i < details.max_iterations; i++) {
         var closest_render_state: RenderState;
@@ -525,23 +500,22 @@ fn trace_ray(ray: Ray) -> vec4<f32> {
 
             prev_ray.direction = curr_ray.direction;
 
-            let ray_distance = distance(ray.position, bh_position);
             closest_render_state = hit_ray(prev_ray, t_min, step_size, ray_distance, false);
 
-            if distance(curr_ray.position, bh_position) > bh_radius {
+            if distance(curr_ray.position, black_hole.position) > black_hole.relativity_radius {
                 relativity = false;
             }
         } else {
-            let ray_distance = distance(ray.position, bh_position);
+            let ray_distance = distance(ray.position, black_hole.position);
             let render_state = hit_ray(curr_ray, t_min, t_max, ray_distance, true);
-            let hit_sphere_state = hit_sphere(prev_ray, relativity_sphere, t_min, t_max);
+            let sphere_hit = hit_sphere(prev_ray, black_hole.position, black_hole.relativity_radius, t_min, t_max);
 
-            if !hit_sphere_state.hit && !render_state.hit {
+            if sphere_hit >= t_max && !render_state.hit {
                 break;
             }
 
-            if hit_sphere_state.hit && hit_sphere_state.t < render_state.t {
-                curr_ray.position += curr_ray.direction * hit_sphere_state.t;
+            if sphere_hit < render_state.t {
+                curr_ray.position += curr_ray.direction * sphere_hit;
                 relativity = true;
             } else {
                 closest_render_state = render_state;
@@ -552,54 +526,26 @@ fn trace_ray(ray: Ray) -> vec4<f32> {
             curr_ray.position += prev_ray.direction * closest_render_state.t;
             color += color_amount * closest_render_state.opacity * clamp(closest_render_state.color, vec3<f32>(0.0), vec3<f32>(1.0));
             color_amount *= 1.0 - closest_render_state.opacity;
-            hit = true;
         }
 
-        if color_amount < 0.05 {
+        if color_amount < 1e-4 {
             break;
         }
     }
 
-    if color_amount > 0.05 {
+    if color_amount > 1e-4 {
         let out = cartesian_to_spherical(curr_ray.direction.xzy);
-        let uv = vec2<f32>((out.z + 2.5*PI) / (2.0 * PI), (PI - out.y) / PI) % vec2<f32>(1.0);
+        let uv = vec2<f32>((out.z + 2.75*PI) / (2.0 * PI), (PI - out.y) / PI) % vec2<f32>(1.0);
         let sky_color: vec3<f32> = textureSampleLevel(t_sky, s_sky, uv, 0.0).rgb;
         let miss_color = pow(sky_color, vec3<f32>(5.0));
         color += color_amount * miss_color;
     }
 
-    if hit {
+    if color_amount < (1.0 - 1e-4) {
         return vec4<f32>(color, 1.0);
     }
 
     return vec4<f32>(curr_ray.direction.xyz, 0.0);
-}
-
-fn rotate_vector_by_euler_angles(input_vector: vec3<f32>, euler_angles: vec3<f32>) -> vec3<f32> {
-    let c1 = cos(euler_angles.x);
-    let s1 = sin(euler_angles.x);
-    let c2 = cos(euler_angles.y);
-    let s2 = sin(euler_angles.y);
-    let c3 = cos(euler_angles.z);
-    let s3 = sin(euler_angles.z);
-
-    // Rotation matrix
-
-    let rotation_matrix = mat3x3<f32>(
-        c1 * c3 - s1 * s2 * s3,
-        -c2 * s3,
-        s1 * c3 + c1 * s2 * s3,
-        c1 * s3 + s1 * s2 * c3,
-        c2 * c3,
-        s1 * s3 - c1 * s2 * c3,
-        -s1 * c2,
-        s2,
-        c1 * c2
-    );
-
-    let rotated_vector = input_vector * rotation_matrix;
-
-    return rotated_vector;
 }
 
 fn match_up(up_vector: vec3<f32>, point: vec3<f32>) -> vec3<f32> {
@@ -616,30 +562,34 @@ fn match_up(up_vector: vec3<f32>, point: vec3<f32>) -> vec3<f32> {
     return rotation_matrix * point;
 }
 
-fn hit_black_hole(ray: Ray, black_hole: BlackHole, t_min: f32, t_max: f32, total_distance: f32) -> RenderState {
-    let torus = Torus2D(
-        black_hole.inner_radius,
-        black_hole.outer_radius,
-        black_hole.position,
-        black_hole.rotation,
-    );
+fn hit_black_hole(ray: Ray, t_min: f32, t_max: f32, total_distance: f32,) -> RenderState {
+    let from_ray = ray.position + ray.direction * t_min;
 
-    let sphere = Sphere(1.0, black_hole.position, vec3<f32>(0.0));
+    let dist = distance(black_hole.position, from_ray);
 
-    var render_state = hit_sphere(ray, sphere, t_min, t_max);
+    if dist < 1.0 {
+        var render_state: RenderState;
+        render_state.hit = true;
+        render_state.color = vec3<f32>(0.0);
+        render_state.t = 0.0;
+        render_state.opacity = 1.0;
+        return render_state;
+    }
 
-    let disk_hit = hit_torus2d(ray, torus, t_min, t_max);
+    let to_ray = ray.position + ray.direction * t_max;
 
-    if disk_hit.hit && disk_hit.t < render_state.t {
-        render_state = disk_hit;
+    let aligned_ray_pos = match_up(black_hole.normal, from_ray);
+    let aligned_to_ray_pos = match_up(black_hole.normal, to_ray);
 
-        let intersection = ray.position + ray.direction * render_state.t;
-        let dist = distance(black_hole.position, intersection);
+    if dist > black_hole.inner_radius && dist < black_hole.outer_radius && aligned_ray_pos.y * aligned_to_ray_pos.y < pow(t_max, 3.0) {
+        var render_state: RenderState;
+        render_state.hit = true;
+        render_state.normal = black_hole.normal;
+        render_state.t = 0.0;
 
-        let disk_displacement = match_up(render_state.normal, vec3<f32>(torus.outer_radius, 1.0, torus.outer_radius));
-        var disk_density = 1.0 - length(intersection / torus.outer_radius);
+        var disk_density = 1.0 - length(to_ray / black_hole.outer_radius);
 
-        disk_density  *= smoothstep(torus.inner_radius, torus.inner_radius + 1.0, dist);
+        disk_density  *= 1.0; smoothstep(black_hole.inner_radius, black_hole.inner_radius + 1.0, dist);
         disk_density  *= inverseSqrt(dist);
         let optical_depth = pow(6.0 * disk_density, 1.0);
 
@@ -648,7 +598,7 @@ fn hit_black_hole(ray: Ray, black_hole: BlackHole, t_min: f32, t_max: f32, total
 
         if black_hole.show_disk_texture != 0 {
             let r = (dist  - black_hole.inner_radius) / (black_hole.outer_radius - black_hole.inner_radius);
-            let relative_pos = (intersection - torus.position) / torus.outer_radius;
+            let relative_pos = (to_ray - black_hole.position) / black_hole.outer_radius;
             let rotated_pos = match_up(render_state.normal, relative_pos);
             let angle = atan2(rotated_pos.z, rotated_pos.x);
 
@@ -662,7 +612,7 @@ fn hit_black_hole(ray: Ray, black_hole: BlackHole, t_min: f32, t_max: f32, total
         }
 
         if black_hole.show_red_shift != 0 {
-            let shiftVector = 0.6 * cross(normalize(intersection), normalize(vec3<f32>(0.0, -1.0, 0.0)));
+            let shiftVector = 0.6 * cross(normalize(to_ray), normalize(vec3<f32>(0.0, -1.0, 0.0)));
             let velocity = dot(ray.direction, shiftVector);
             let doppler_shift = sqrt((1.0 - velocity) / (1.0 + velocity));
             let gravitational_shift = sqrt(
@@ -676,58 +626,13 @@ fn hit_black_hole(ray: Ray, black_hole: BlackHole, t_min: f32, t_max: f32, total
 
             render_state.color *= shift_color;
         }
+
+        return render_state;
     }
-
-    return render_state;
-}
-
-
-fn hit_torus2d(ray: Ray, torus: Torus2D, t_min: f32, t_max: f32) -> RenderState {
-    let plane = Plane(torus.position, torus.rotation);
-    let render_state = hit_plane(ray, plane, t_min, t_max);
-
-    if render_state.hit {
-        let intersection = ray.position + ray.direction * render_state.t;
-        let distance_from_center = distance(torus.position, intersection);
-
-        if distance_from_center < torus.inner_radius || distance_from_center > torus.outer_radius {
-            var miss: RenderState;
-            miss.hit = false;
-            miss.t = t_max;
-
-            return miss;
-        }
-    }
-
-    return render_state;
-}
-
-fn hit_plane(ray: Ray, plane: Plane, t_min: f32, t_max: f32) -> RenderState {
-    let normal = rotate_vector_by_euler_angles(vec3<f32>(0.0, -1.0, 0.0), plane.rotation);
-    let denom = dot(normal, ray.direction);
 
     var render_state: RenderState;
     render_state.hit = false;
     render_state.t = t_max;
-
-    let distance = plane.position - ray.position;
-
-    let t = dot(distance, normal) / denom; 
-
-    if t < t_max && t > t_min {
-        if denom < 0.0 {
-            render_state.normal = -normal;
-        } else {
-            render_state.normal = normal;
-        }
-
-        render_state.color = vec3<f32>(1.0);
-        render_state.opacity = 1.0;
-        render_state.t = t;
-        render_state.hit = true;
-        return render_state;
-    }
-
     return render_state;
 }
 
@@ -747,21 +652,17 @@ fn hit_aabb(ray: Ray, node: Node, offset: vec3<f32>) -> f32 {
     var t_max_axis: f32 = min(min(t_max.x, t_max.y), t_max.z);
 
     if t_min_axis > t_max_axis || t_max_axis < 0 {
-        return 1e8;
+        return 1e9;
     } else {
         return t_min_axis;
     }
 }
 
-fn hit_sphere(ray: Ray, sphere: Sphere, t_min: f32, t_max: f32) -> RenderState {
-    var render_state: RenderState;
-    render_state.hit = false;
-    render_state.t = t_max;
-
-    let oc = ray.position - sphere.position;
+fn hit_sphere(ray: Ray, position: vec3<f32>, radius: f32, t_min: f32, t_max: f32) -> f32 {
+    let oc = ray.position - position;
     let a = dot(ray.direction, ray.direction);
     let b = 2.0 * dot(oc, ray.direction);
-    let c = dot(oc, oc) - sphere.radius * sphere.radius;
+    let c = dot(oc, oc) - radius * radius;
 
     let discriminant = b * b - 4.0 * a * c;
 
@@ -780,20 +681,11 @@ fn hit_sphere(ray: Ray, sphere: Sphere, t_min: f32, t_max: f32) -> RenderState {
         }
 
         if t_closest < t_max && t_closest > t_min {
-            let intersectionPoint = ray.position + t_closest * ray.direction;
-            let normal = normalize(intersectionPoint - sphere.position);
-
-            render_state.color = sphere.color;
-            render_state.opacity = 1.0;
-            render_state.t = t_closest;
-            render_state.normal = normal;
-            render_state.hit = true;
-
-            return render_state;
+            return t_closest;
         }
     }
 
-    return render_state;
+    return t_max;
 }
 
 fn hit_triangle(ray: Ray, t_min: f32, t_max:f32, triangle: Triangle) -> RenderState {

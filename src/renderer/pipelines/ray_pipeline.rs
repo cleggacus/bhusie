@@ -298,12 +298,7 @@ impl RayPipeline {
         &self.texture_view
     }
 
-    pub fn pass(&mut self, encoder: &mut wgpu::CommandEncoder) {
-        let mut compute_pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
-            label: Some("Compute Pass"),
-            timestamp_writes: None,
-        });
-
+    pub fn pass<'a>(&'a mut self, compute_pass: &mut wgpu::ComputePass<'a>) {
         compute_pass.set_pipeline(&self.pipeline);
         compute_pass.set_bind_group(0, &self.bind_group, &[]);
         compute_pass.dispatch_workgroups(

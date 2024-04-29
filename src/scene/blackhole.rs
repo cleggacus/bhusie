@@ -1,4 +1,4 @@
-use cgmath::{Vector3, Zero};
+use cgmath::{vec3, Euler, Quaternion, Rad, Rotation, Vector3, Zero};
 
 pub struct BlackHole {
     pub position: Vector3<f32>,
@@ -41,7 +41,7 @@ pub struct BlackHoleUniform {
     relativity_sphere_radius: f32,
     position: [f32; 3],
     show_disk_texture: i32,
-    accretion_disk_rotation: [f32; 3],
+    accretion_disk_normal: [f32; 3],
     show_red_shift: i32,
 }
 
@@ -54,20 +54,27 @@ impl BlackHoleUniform {
             relativity_sphere_radius: 0.0,
             position: [0.0; 3],
             show_disk_texture: 1,
-            accretion_disk_rotation: [0.0; 3],
+            accretion_disk_normal: [0.0; 3],
             show_red_shift: 1,
         }
     }
 
     pub fn update(&mut self, black_hole: &BlackHole) {
         self.position = black_hole.position.into();
-        self.accretion_disk_rotation = black_hole.accretion_disk_rotation.into();
         self.accretion_disk_inner = black_hole.accretion_disk_inner;
         self.accretion_disk_outer = black_hole.accretion_disk_outer;
         self.rotation_speed = black_hole.rotation_speed;
         self.relativity_sphere_radius = black_hole.relativity_sphere_radius;
         self.show_disk_texture = black_hole.show_disk_texture;
         self.show_red_shift = black_hole.show_red_shift;
+
+        let rotation = Quaternion::from(Euler {
+            x: Rad(black_hole.accretion_disk_rotation.x),
+            y: Rad(black_hole.accretion_disk_rotation.y),
+            z: Rad(black_hole.accretion_disk_rotation.z),
+        });
+
+        self.accretion_disk_normal = rotation.rotate_vector(Vector3::new(0.0, -1.0, 0.0)).into();
     }
 }
 

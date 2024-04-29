@@ -10,7 +10,7 @@ pub mod triangle;
 use wgpu::{util::DeviceExt, PresentMode};
 use winit::window::Window;
 
-use crate::{renderer::pipelines::{bloom_pipline::{BloomDirection, BloomDownPipelineDescriptor}, fxaa_pipline::{EdgeThresholdMax, EdgeThresholdMin, FXAAPipelineDescriptor}, hdr_pipeline::HDRPipelineDescriptor, mix_pipeline::{MixDetails, MixPipelineDescriptor}, sky_pipeline::SkyPipelineDescriptor}, scene::{blackhole::BlackHoleUniform, camera::CameraUniform, Scene}, ui::UI};
+use crate::{renderer::pipelines::{bloom_pipline::{BloomDirection, BloomDownPipelineDescriptor}, fxaa_pipline::{self, EdgeThresholdMax, EdgeThresholdMin, FXAAPipelineDescriptor}, hdr_pipeline::HDRPipelineDescriptor, mix_pipeline::{self, MixDetails, MixPipelineDescriptor}, sky_pipeline::SkyPipelineDescriptor}, scene::{blackhole::BlackHoleUniform, camera::CameraUniform, Scene}, ui::UI};
 
 use self::pipelines::{bloom_pipline::BloomPipeline, fxaa_pipline::{FXAADetails, FXAADetailsUniform, FXAAPipeline}, hdr_pipeline::HDRPipeline, mix_pipeline::MixPipeline, ray_pipeline::{RayDetails, RayPipeline, RayPipelineDescriptor}, screen_pipeline::{ScreenPassDescriptor, ScreenPipeline, ScreenPipelineDescriptor}, sky_pipeline::SkyPipeline};
 
@@ -310,7 +310,7 @@ impl<'a> Renderer<'a> {
 
         let screen_pipeline = ScreenPipeline::new(ScreenPipelineDescriptor { 
             device: &device, 
-            input_view: hdr_pipeline.output_view(),
+            input_view: fxaa_pipeline.output_view(),
             format: surface_format,
             resolution: (current_res.0 as u32, current_res.1 as u32),
         });
@@ -392,14 +392,22 @@ impl<'a> Renderer<'a> {
         });
 
 
+        // compute passes 
+        
+        {
+            let mut compute_pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
+                label: Some("Compute Pass"),
+                timestamp_writes: None,
+            });
+
+            for rp in &mut self.ray_pipelines {
+                rp.pass(&mut compute_pass);
+            } 
+
+            self.sky_pipeline.pass(&mut compute_pass);
+        }
+
         // render passes 
-
-        for rp in &mut self.ray_pipelines {
-            rp.pass(&mut encoder);
-        } 
-
-        self.sky_pipeline.pass(&mut encoder);
-        self.fxaa_pipeline.pass(&mut encoder);
 
         for bp in &mut self.bloom_pipelines {
             bp.pass(&mut encoder);
@@ -407,6 +415,7 @@ impl<'a> Renderer<'a> {
 
         self.mix_pipeline.pass(&mut encoder);
         self.hdr_pipeline.pass(&mut encoder);
+        self.fxaa_pipeline.pass(&mut encoder);
 
         self.screen_pipeline.pass(ScreenPassDescriptor {
             surface_config: &self.surface_config,
