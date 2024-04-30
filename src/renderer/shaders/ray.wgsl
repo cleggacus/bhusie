@@ -564,7 +564,7 @@ fn trace_ray(ray: Ray) -> vec4<f32> {
 
     if color_amount > 0.001 {
         let out = cartesian_to_spherical(curr_ray.direction.xzy);
-        let uv = vec2<f32>((out.z + 2.75*PI) / (2.0 * PI), (PI - out.y) / PI) % vec2<f32>(1.0);
+        let uv = vec2<f32>((out.z + 2.6*PI) / (2.0 * PI), (PI - out.y) / PI) % vec2<f32>(1.0);
         let sky_color: vec3<f32> = textureSampleLevel(t_sky, s_sky, uv, 0.0).rgb;
         let miss_color = pow(sky_color, vec3<f32>(5.0));
         color += color_amount * miss_color;
@@ -601,11 +601,11 @@ fn hit_black_hole(ray: Ray, black_hole: BlackHole, t_min: f32, t_max: f32, total
         let disk_displacement = black_hole.rotation_matrix * vec3<f32>(torus.outer_radius, 1.0, torus.outer_radius);
         var disk_density = 1.0 - length(intersection / torus.outer_radius);
 
-        disk_density  *= 1.0; smoothstep(torus.inner_radius, torus.inner_radius + 1.0, dist);
+        disk_density  *= smoothstep(torus.inner_radius, torus.inner_radius + 1.0, dist);
         disk_density  *= inverseSqrt(dist);
-        let optical_depth = pow(15.0 * disk_density, 1.5);
+        let optical_depth = pow(30.0 * disk_density, 1.3);
 
-        render_state.opacity = clamp(optical_depth, 0.0, 1.0);
+        render_state.opacity = clamp(optical_depth*0.2, 0.0, 1.0);
         render_state.color = vec3<f32>(optical_depth);
 
         if black_hole.show_disk_texture != 0 {
@@ -619,14 +619,14 @@ fn hit_black_hole(ray: Ray, black_hole: BlackHole, t_min: f32, t_max: f32, total
 
             let disk_color: vec4<f32> = textureSampleLevel(t_disk, s_disk, uv, 0.0);
 
-            render_state.opacity *= pow(disk_color.a * 2.0, 2.0);
+            render_state.opacity *= clamp(0.7 + disk_color.a*0.5, 0.0, 1.0);
             render_state.color *= disk_color.rgb * disk_color.a;
         }
 
         if black_hole.show_red_shift != 0 {
             let temp_max = 100000.0;
             let temp_min = 10000.0;
-            let temp = 12000.0;
+            let temp = 15000.0;
             let y = 1.0 - (temp - temp_min) / (temp_max - temp_min);
 
             let shiftVector = 0.6 * cross(normalize(intersection), normalize(vec3<f32>(0.0, -1.0, 0.0)));
@@ -637,7 +637,7 @@ fn hit_black_hole(ray: Ray, black_hole: BlackHole, t_min: f32, t_max: f32, total
                 (1.0 - 2.0 / total_distance)
             );
 
-            let shift = clamp(gravitational_shift * doppler_shift, 0.0, 1.0);
+            let shift = pow(clamp(gravitational_shift * doppler_shift, 0.0, 1.0), 2.0);
 
             let shift_color: vec3<f32> = textureSampleLevel(t_temp, s_temp, vec2<f32>(shift, y), 0.0).rgb;
 

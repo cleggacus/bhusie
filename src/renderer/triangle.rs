@@ -97,7 +97,7 @@ impl Model {
         Self {
             ident_size,
             ident,
-            position: Vector3::new(5.0, -5.0, 40.0),
+            position: Vector3::new(-7.0, 0.0, 30.0),
             rotation: Vector3::zero(),
             point_count: 0,
             triangle_count: 0,
@@ -105,7 +105,7 @@ impl Model {
             points: [[0.0; 4]; MAX_MODEL_VERTICES],
             normals: [[0.0; 4]; MAX_MODEL_VERTICES],
             triangles: [Triangle::default(); MAX_MODEL_VERTICES],
-            visible: 0,
+            visible: 1,
             nodes: [Node::default(); MAX_MODEL_VERTICES],
             bvh_lookup: [0; MAX_MODEL_VERTICES],
             nodes_used: 0,

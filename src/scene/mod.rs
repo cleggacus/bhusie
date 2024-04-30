@@ -28,8 +28,8 @@ impl Scene {
         Self {
             black_hole: BlackHole::new(),
             camera: Camera::new(),
-            camera_move_speed: 5.0,
-            camera_rotate_speed: 0.5,
+            camera_move_speed: 7.5,
+            camera_rotate_speed: 0.15,
             materials: MaterialArrayBuffer::new(),
             models,
         }

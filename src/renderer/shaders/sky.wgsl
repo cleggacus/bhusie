@@ -18,7 +18,7 @@ fn main(@builtin(global_invocation_id) GlobalInvocationID: vec3<u32>) {
 
     if p.a == 0.0 {
         let out = cartesian_to_spherical(p.xzy);
-        let uv = vec2<f32>((out.z + 2.75*PI) / (2.0 * PI), (PI - out.y) / PI) % vec2<f32>(1.0);
+        let uv = vec2<f32>((out.z + 2.6*PI) / (2.0 * PI), (PI - out.y) / PI) % vec2<f32>(1.0);
 
         let sky_color: vec3<f32> = textureSampleLevel(t_sky, s_sky, uv.xy, 0.0).rgb;
         let miss_color = pow(sky_color, vec3<f32>(5.0));

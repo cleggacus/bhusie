@@ -134,11 +134,11 @@ fn main() {
     let buffer_0 = generate(1000, 1000, 4);
     let spiral_0 = spiral(buffer_0, 2.0, 0.5);
     let buffer_1 = generate(1000, 1000, 20);
-    let spiral_1 = spiral(buffer_1, 2.15, 0.5);
+    let spiral_1 = spiral(buffer_1, 2.0, 0.5);
     let buffer_2 = generate(1000, 1000, 50);
-    let spiral_2 = spiral(buffer_2, 2.3, 0.5);
+    let spiral_2 = spiral(buffer_2, 2.0, 0.5);
     let buffer_3 = generate(1000, 1000, 100);
-    let spiral_3 = spiral(buffer_3, 2.45, 0.5);
+    let spiral_3 = spiral(buffer_3, 2.0, 0.5);
 
     let m1 = merge(spiral_3, spiral_2, 0.5);
     let m2 = merge(m1, spiral_1, 0.5);

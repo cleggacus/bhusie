@@ -73,7 +73,7 @@ impl UI {
 
         self.deltas.push(delta_time.as_secs_f64());
 
-        if self.delta_time > 1.0 {
+        if self.delta_time > 0.25 {
             let sum = self.deltas.iter().sum::<f64>();
             let delta = sum / self.deltas.len() as f64;
 

@@ -109,7 +109,7 @@ impl<'a> Renderer<'a> {
         let model_buffer = scene.models.create_buffer(&device);
 
         let ray_details = RayDetails {
-            angle_division_threshold: 1.0,
+            angle_division_threshold: 0.02,
             step_size: 0.1,
             max_iterations: 900,
             ..RayDetails::default()
@@ -169,8 +169,8 @@ impl<'a> Renderer<'a> {
         // let mut current_res = (39.0, 22.0); // 720p 45
         // let mut current_res = (79.0, 44.0); // 720p 45
         // let mut current_res = (159.0, 89.0); // 720p 45
-        let mut current_res = (239.0, 134.0); // 1080p
-        let ray_multiplier = 2.0;
+        let mut current_res = (30.0, 17.0); // 1080p
+        let ray_multiplier = 4.0;
         let iters = 4;
 
         for i in 0..iters {
@@ -211,7 +211,7 @@ impl<'a> Renderer<'a> {
         });
 
 
-        let bloom_pipeline_count = 5;
+        let bloom_pipeline_count = 6;
         let bloom_multiplier = 2.0;
         let mut bloom_pipelines: Vec<BloomPipeline> = Vec::new();
 
@@ -251,7 +251,7 @@ impl<'a> Renderer<'a> {
         }
 
         let mix_details = MixDetails {
-            mix_ratio: 0.6
+            mix_ratio: 0.7
         };
 
         let mix_details_buffer = device.create_buffer_init(
@@ -283,8 +283,8 @@ impl<'a> Renderer<'a> {
         log::info!("Loading fxaa pipeline");
 
         let fxaa_details = FXAADetails {
-            edge_threshold_min: EdgeThresholdMin::Medium,
-            edge_threshold_max: EdgeThresholdMax::Medium,
+            edge_threshold_min: EdgeThresholdMin::Ultra,
+            edge_threshold_max: EdgeThresholdMax::Ultra,
             iterations: 12,
             subpixel_quality: 0.75,
         };
