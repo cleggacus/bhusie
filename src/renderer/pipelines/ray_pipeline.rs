@@ -61,7 +61,7 @@ impl RayPipeline {
         let texture_view = texture.create_view(&Default::default());
 
         let temp_texture = texture::Texture::from_bytes(
-            descriptor.device, descriptor.queue, include_bytes!("../textures/colourtemp.jpg"));
+            descriptor.device, descriptor.queue, include_bytes!("../textures/color.png"));
 
         let disk_texture = texture::Texture::from_bytes(
             descriptor.device, descriptor.queue, include_bytes!("../textures/disk.png"));

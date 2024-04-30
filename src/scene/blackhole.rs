@@ -1,4 +1,4 @@
-use cgmath::{vec3, Euler, Quaternion, Rad, Rotation, Vector3, Zero};
+use cgmath::{Euler, InnerSpace, Quaternion, Rad, Rotation, Vector3, Zero};
 
 pub struct BlackHole {
     pub position: Vector3<f32>,
@@ -41,8 +41,10 @@ pub struct BlackHoleUniform {
     relativity_sphere_radius: f32,
     position: [f32; 3],
     show_disk_texture: i32,
-    accretion_disk_normal: [f32; 3],
+    normal: [f32; 3],
     show_red_shift: i32,
+    rotation_matrix: [f32; 12],
+    pad: [i32; 9],
 }
 
 impl BlackHoleUniform {
@@ -54,8 +56,10 @@ impl BlackHoleUniform {
             relativity_sphere_radius: 0.0,
             position: [0.0; 3],
             show_disk_texture: 1,
-            accretion_disk_normal: [0.0; 3],
+            normal: [0.0; 3],
             show_red_shift: 1,
+            rotation_matrix: [0.0; 12],
+            pad: [0; 9],
         }
     }
 
@@ -68,13 +72,23 @@ impl BlackHoleUniform {
         self.show_disk_texture = black_hole.show_disk_texture;
         self.show_red_shift = black_hole.show_red_shift;
 
-        let rotation = Quaternion::from(Euler {
-            x: Rad(black_hole.accretion_disk_rotation.x),
-            y: Rad(black_hole.accretion_disk_rotation.y),
-            z: Rad(black_hole.accretion_disk_rotation.z),
-        });
+        let q_rotate = Quaternion::from(Euler::new(
+            Rad(black_hole.accretion_disk_rotation.x),
+            Rad(black_hole.accretion_disk_rotation.y),
+            Rad(black_hole.accretion_disk_rotation.z),
+        ));
 
-        self.accretion_disk_normal = rotation.rotate_vector(Vector3::new(0.0, -1.0, 0.0)).into();
+        let up_vector = q_rotate.rotate_vector(Vector3::new(0.0, -1.0, 0.0)).normalize();
+        let right_vector = Vector3::new(0.0, 0.0, 1.0).cross(up_vector);
+        let forward_vector = right_vector.cross(up_vector);
+
+        self.rotation_matrix = [
+            right_vector.x, right_vector.y, right_vector.z, 0.0,
+            up_vector.x, up_vector.y, up_vector.z, 0.0,
+            forward_vector.x, forward_vector.y, forward_vector.z, 0.0,
+        ];
+
+        self.normal = up_vector.into();
     }
 }
 

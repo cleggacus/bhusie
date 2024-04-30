@@ -75,7 +75,7 @@ fn generate(width: u32, height: u32, density: u32) -> ImageBuffer<Rgba<u8>, Vec<
     buffer
 }
 
-fn spiral(buffer: ImageBuffer<Rgba<u8>, Vec<u8>>) -> ImageBuffer<Rgba<u8>, Vec<u8>> {
+fn spiral(buffer: ImageBuffer<Rgba<u8>, Vec<u8>>, amount: f32, power: f32) -> ImageBuffer<Rgba<u8>, Vec<u8>> {
     let image_width = buffer.width();
     let image_height = buffer.height();
 
@@ -89,7 +89,7 @@ fn spiral(buffer: ImageBuffer<Rgba<u8>, Vec<u8>>) -> ImageBuffer<Rgba<u8>, Vec<u
             let r = (rx.powi(2) + ry.powi(2)).sqrt();
             let theta = ry.atan2(rx);
 
-            let theta = ((theta + PI + r.powf(0.25) * PI * 10.0) % (2.0 * PI)) - PI;
+            let theta = ((theta + PI + r.powf(power) * PI * amount) % (2.0 * PI)) - PI;
 
             let rx = r * theta.cos();
             let ry = r * theta.sin();
@@ -132,13 +132,13 @@ fn merge(buffer1: ImageBuffer<Rgba<u8>, Vec<u8>>, buffer2: ImageBuffer<Rgba<u8>,
 
 fn main() {
     let buffer_0 = generate(1000, 1000, 4);
-    let spiral_0 = spiral(buffer_0);
-    let buffer_1 = generate(1000, 1000, 10);
-    let spiral_1 = spiral(buffer_1);
-    let buffer_2 = generate(1000, 1000, 30);
-    let spiral_2 = spiral(buffer_2);
+    let spiral_0 = spiral(buffer_0, 2.0, 0.5);
+    let buffer_1 = generate(1000, 1000, 20);
+    let spiral_1 = spiral(buffer_1, 2.15, 0.5);
+    let buffer_2 = generate(1000, 1000, 50);
+    let spiral_2 = spiral(buffer_2, 2.3, 0.5);
     let buffer_3 = generate(1000, 1000, 100);
-    let spiral_3 = spiral(buffer_3);
+    let spiral_3 = spiral(buffer_3, 2.45, 0.5);
 
     let m1 = merge(spiral_3, spiral_2, 0.5);
     let m2 = merge(m1, spiral_1, 0.5);

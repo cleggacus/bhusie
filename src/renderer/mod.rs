@@ -10,7 +10,7 @@ pub mod triangle;
 use wgpu::{util::DeviceExt, PresentMode};
 use winit::window::Window;
 
-use crate::{renderer::pipelines::{bloom_pipline::{BloomDirection, BloomDownPipelineDescriptor}, fxaa_pipline::{self, EdgeThresholdMax, EdgeThresholdMin, FXAAPipelineDescriptor}, hdr_pipeline::HDRPipelineDescriptor, mix_pipeline::{self, MixDetails, MixPipelineDescriptor}, sky_pipeline::SkyPipelineDescriptor}, scene::{blackhole::BlackHoleUniform, camera::CameraUniform, Scene}, ui::UI};
+use crate::{renderer::pipelines::{bloom_pipline::{BloomDirection, BloomDownPipelineDescriptor}, fxaa_pipline::{EdgeThresholdMax, EdgeThresholdMin, FXAAPipelineDescriptor}, hdr_pipeline::HDRPipelineDescriptor, mix_pipeline::{MixDetails, MixPipelineDescriptor}, sky_pipeline::SkyPipelineDescriptor}, scene::{blackhole::BlackHoleUniform, camera::CameraUniform, Scene}, ui::UI};
 
 use self::pipelines::{bloom_pipline::BloomPipeline, fxaa_pipline::{FXAADetails, FXAADetailsUniform, FXAAPipeline}, hdr_pipeline::HDRPipeline, mix_pipeline::MixPipeline, ray_pipeline::{RayDetails, RayPipeline, RayPipelineDescriptor}, screen_pipeline::{ScreenPassDescriptor, ScreenPipeline, ScreenPipelineDescriptor}, sky_pipeline::SkyPipeline};
 
@@ -97,7 +97,7 @@ impl<'a> Renderer<'a> {
             format: surface_format,
             width: size.width,
             height: size.height,
-            present_mode: wgpu::PresentMode::AutoNoVsync,
+            present_mode: wgpu::PresentMode::AutoVsync,
             alpha_mode: surface_caps.alpha_modes[0],
             view_formats: vec![],
             desired_maximum_frame_latency: 2,
@@ -110,7 +110,7 @@ impl<'a> Renderer<'a> {
 
         let ray_details = RayDetails {
             angle_division_threshold: 1.0,
-            step_size: 0.05,
+            step_size: 0.1,
             max_iterations: 900,
             ..RayDetails::default()
         };
