@@ -4,7 +4,7 @@ use super::array_buffer::{ArrayBuffer, ArrayBufferUniform};
 
 pub const MAX_IDENT_LENGTH: usize = 64;
 pub const MAX_MODELS: usize = 1;
-pub const MAX_MODEL_VERTICES: usize = 512000;
+pub const MAX_MODEL_VERTICES: usize = 524288;
 
 #[derive(Debug, Copy, Clone)]
 pub struct Node {
@@ -97,7 +97,7 @@ impl Model {
         Self {
             ident_size,
             ident,
-            position: Vector3::new(-7.0, 0.0, 35.0),
+            position: Vector3::new(-15.0, 0.0, 100.0),
             rotation: Vector3::zero(),
             point_count: 0,
             triangle_count: 0,

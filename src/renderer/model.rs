@@ -78,8 +78,10 @@ pub fn load_model(
 
             model.add_triangle(triangle);
         }
-
-        model.build_bvh();
-        model_buffer.insert(model);
     }
+
+    println!("{}", model.point_count);
+
+    model.build_bvh();
+    model_buffer.insert(model);
 }

@@ -3,7 +3,6 @@ pub mod model_settings;
 pub mod black_hole_settings;
 pub mod render_settings;
 
-use egui::Key;
 use winit::window::{Fullscreen, Window};
 
 use crate::{renderer::Renderer, scene::Scene};
