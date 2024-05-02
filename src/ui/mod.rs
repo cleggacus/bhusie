@@ -3,7 +3,8 @@ pub mod model_settings;
 pub mod black_hole_settings;
 pub mod render_settings;
 
-use winit::window::Window;
+use egui::Key;
+use winit::window::{Fullscreen, Window};
 
 use crate::{renderer::Renderer, scene::Scene};
 
@@ -98,6 +99,38 @@ impl UI {
                             log::info!("Open");
                         } else if ui.button("Save").clicked() {
                             log::info!("Save");
+                        }
+                    });
+
+                    if ui.input(|i| i.key_pressed(egui::Key::F11)) {
+                        let is_fullscreen = window.fullscreen().is_some();
+
+                        window.set_fullscreen(
+                            if is_fullscreen {
+                                None 
+                            } else {
+                                Some(Fullscreen::Borderless(None))
+                            }
+                        );
+                    }
+
+                    ui.menu_button("Window", |ui| {
+                        let is_fullscreen = window.fullscreen().is_some();
+
+                        let fullscreen_text = if is_fullscreen {
+                            "Exit Fullscreen"
+                        } else {
+                            "Enter Fullscreen"
+                        };
+
+                        if ui.button(fullscreen_text).clicked() {
+                            window.set_fullscreen(
+                                if is_fullscreen {
+                                    None 
+                                } else {
+                                    Some(Fullscreen::Borderless(None))
+                                }
+                            );
                         }
                     });
 

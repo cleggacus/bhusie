@@ -19,7 +19,7 @@ impl BlackHole {
             accretion_disk_inner: 2.0,
             accretion_disk_outer: 10.0,
             rotation_speed: 1.0,
-            relativity_sphere_radius: 20.0,
+            relativity_sphere_radius: 30.0,
             show_disk_texture: 1,
             show_red_shift: 1,
         }

@@ -97,7 +97,7 @@ impl Model {
         Self {
             ident_size,
             ident,
-            position: Vector3::new(-7.0, 0.0, 30.0),
+            position: Vector3::new(-7.0, 0.0, 35.0),
             rotation: Vector3::zero(),
             point_count: 0,
             triangle_count: 0,
