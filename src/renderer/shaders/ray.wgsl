@@ -511,7 +511,9 @@ fn trace_ray(ray: Ray) -> vec4<f32> {
 
     var hit = false;
 
-    for(var i = 0; i < details.max_iterations; i++) {
+    var i = 0; 
+
+    for(; i < details.max_iterations; i++) {
         var closest_render_state: RenderState;
         closest_render_state.t = t_max;
 
@@ -562,15 +564,16 @@ fn trace_ray(ray: Ray) -> vec4<f32> {
         }
     }
 
-    if color_amount > 0.001 {
-        let out = cartesian_to_spherical(curr_ray.direction.xzy);
-        let uv = vec2<f32>((out.z + 2.6*PI) / (2.0 * PI), (PI - out.y) / PI) % vec2<f32>(1.0);
-        let sky_color: vec3<f32> = textureSampleLevel(t_sky, s_sky, uv, 0.0).rgb;
-        let miss_color = pow(sky_color, vec3<f32>(5.0));
-        color += color_amount * miss_color;
-    }
 
-    if hit {
+    if hit || i <= 10 {
+        if color_amount > 0.001 {
+            let out = cartesian_to_spherical(curr_ray.direction.xzy);
+            let uv = vec2<f32>((out.z + 2.6*PI) / (2.0 * PI), (PI - out.y) / PI) % vec2<f32>(1.0);
+            let sky_color: vec3<f32> = textureSampleLevel(t_sky, s_sky, uv, 0.0).rgb;
+            let miss_color = pow(sky_color, vec3<f32>(5.0));
+            color += color_amount * miss_color;
+        }
+
         return vec4<f32>(color, 1.0);
     }
 

@@ -169,9 +169,9 @@ impl<'a> Renderer<'a> {
         // let mut current_res = (39.0, 22.0); // 720p 45
         // let mut current_res = (79.0, 44.0); // 720p 45
         // let mut current_res = (159.0, 89.0); // 720p 45
-        let mut current_res = (30.0, 17.0); // 1080p
+        let mut current_res = (8.0, 4.0); // 1080p
         let ray_multiplier = 4.0;
-        let iters = 4;
+        let iters = 5;
 
         for i in 0..iters {
             log::info!("Loading ray pipeline ({}): {}, {}", i, current_res.0 as u32, current_res.1 as u32);
