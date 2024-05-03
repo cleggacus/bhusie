@@ -512,6 +512,7 @@ fn trace_ray(ray: Ray) -> vec4<f32> {
     var hit = false;
 
     var i = 0; 
+    var closeset_to_bh = distance(curr_ray.position, bh_position);
 
     for(; i < details.max_iterations; i++) {
         var closest_render_state: RenderState;
@@ -528,12 +529,25 @@ fn trace_ray(ray: Ray) -> vec4<f32> {
                 step_size = rk_state.h;
             }
 
+	    let curr_distance_to_bh = distance(curr_ray.position, bh_position);
+
+	    if curr_distance_to_bh < closeset_to_bh {
+                closeset_to_bh = curr_distance_to_bh;
+            }
+
             prev_ray.direction = curr_ray.direction;
 
             closest_render_state = hit_ray(prev_ray, t_min, step_size, ray_distance, false);
 
-            if distance(curr_ray.position, bh_position) > bh_radius {
+            if curr_distance_to_bh > bh_radius {
                 relativity = false;
+		
+    		let feather_width = bh_radius/3.0;
+    		let feather_start = bh_radius-feather_width;
+    		let linear_mix_amount = clamp((closeset_to_bh-feather_start)/feather_width, 0.0, 1.0);
+		let mix_amount = pow(linear_mix_amount, 2.0);
+
+    		curr_ray.direction = mix(curr_ray.direction, ray.direction, mix_amount);
             }
         } else {
             let ray_distance = distance(ray.position, bh_position);
@@ -564,13 +578,12 @@ fn trace_ray(ray: Ray) -> vec4<f32> {
         }
     }
 
-
-    if hit || i <= 10 {
+    if hit || i <= 5 {
         if color_amount > 0.001 {
             let out = cartesian_to_spherical(curr_ray.direction.xzy);
             let uv = vec2<f32>((out.z + 2.6*PI) / (2.0 * PI), (PI - out.y) / PI) % vec2<f32>(1.0);
             let sky_color: vec3<f32> = textureSampleLevel(t_sky, s_sky, uv, 0.0).rgb;
-            let miss_color = pow(sky_color, vec3<f32>(5.0));
+            let miss_color = pow(sky_color, vec3<f32>(4.0));
             color += color_amount * miss_color;
         }
 

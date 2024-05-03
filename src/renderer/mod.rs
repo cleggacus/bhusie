@@ -114,7 +114,7 @@ impl<'a> Renderer<'a> {
         let model_buffer = scene.models.create_buffer(&device);
 
         let ray_details = RayDetails {
-            angle_division_threshold: 0.025,
+            angle_division_threshold: 0.02,
             step_size: 0.1,
             max_iterations: 2000,
             ..RayDetails::default()
