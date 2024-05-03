@@ -1,3 +1,4 @@
+use sdl2::{controller::GameController, Sdl};
 use winit::{dpi::PhysicalSize, event::{Event, WindowEvent}, event_loop::{EventLoop, EventLoopWindowTarget}, window::{Window, WindowBuilder}};
 
 use crate::{input_manager::InputManager, renderer::Renderer, scene::Scene, timer::Timer, ui::UI};
@@ -31,7 +32,9 @@ struct App<'a> {
     renderer: Renderer<'a>,
     input_manager: InputManager,
     ui: UI,
-    scene: Scene
+    scene: Scene,
+    sdl_context: Sdl,
+    controller: Option<GameController>
 }
 
 impl<'a> App<'a> {
@@ -41,6 +44,7 @@ impl<'a> App<'a> {
         let ui = UI::new(window);
         let scene = Scene::new();
         let renderer = Renderer::new(window, &scene).await;
+        let sdl_context = sdl2::init().unwrap();
 
         Self {
             window,
@@ -49,11 +53,21 @@ impl<'a> App<'a> {
             input_manager,
             ui,
             scene,
+            sdl_context,
+            controller: None,
         }
     }
 
     pub fn run(&mut self, event_loop: EventLoop<()>) {
+        self.controller = self.setup_controller();
+
         event_loop.run(move |event, elwt| {
+            self.input_manager.pre_update();
+
+            for event in self.sdl_context.event_pump().unwrap().poll_iter() {
+                self.input_manager.sdl_update(&event);
+            }
+
             match event {
                 Event::WindowEvent {
                     ref event,
@@ -61,9 +75,6 @@ impl<'a> App<'a> {
                 } if window_id == self.window.id() => {
                     self.handle_window_event(event, elwt);
                 },
-                Event::DeviceEvent { event, .. } => {
-                    self.input_manager.device_update(&event);
-                }
                 _ => {}
             }
         }).unwrap();
@@ -87,6 +98,38 @@ impl<'a> App<'a> {
                 self.input_manager.window_update(event, event_response.consumed),
             _ => {}
         }
+    }
+
+    fn setup_controller(&mut self) -> Option<GameController> {
+        let game_controller_subsystem = self.sdl_context.game_controller();
+
+        if game_controller_subsystem.is_err() {
+            return None;
+        }
+
+        let game_controller_subsystem = game_controller_subsystem.unwrap();
+
+        let available = game_controller_subsystem
+            .num_joysticks();
+
+        if available.is_err() {
+            return None;
+        }
+
+        let controller = (0..available.unwrap())
+            .find_map(|id| {
+                if !game_controller_subsystem.is_game_controller(id) {
+                    return None;
+                }
+
+                game_controller_subsystem.open(id).ok()
+            });
+
+        if let Some(controller) = &controller {
+            log::info!("Controller mapping: {}", controller.mapping());
+        }
+
+        controller
     }
 
     fn update(&mut self) {

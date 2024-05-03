@@ -1,3 +1,4 @@
+use sdl2::controller::Button;
 use winit::keyboard::KeyCode;
 
 use crate::{input_manager::InputManager, renderer::{material::MaterialArrayBuffer, model, triangle::ModelArrayBuffer}};
@@ -61,7 +62,22 @@ impl Scene {
             let (x, y) = input_manager.mouse_move();
             let yaw = x as f32 * self.camera_rotate_speed * dt;
             let pitch = -y as f32 * self.camera_rotate_speed * dt;
-            self.camera.rotate_camera(yaw, pitch);
+            camera.rotate_camera(yaw, pitch);
+        }
+
+        let (x, y) = input_manager.joy_right();
+        let yaw = x as f32 * self.camera_rotate_speed * dt * 10.0;
+        let pitch = -y as f32 * self.camera_rotate_speed * dt * 10.0;
+        camera.rotate_camera(yaw, pitch);
+
+        let (x, y) = input_manager.joy_left();
+        camera.move_camera(self.camera_move_speed * dt * camera.forward() * 1.5 * -y as f32);
+        camera.move_camera(self.camera_move_speed * dt * camera.right() * 1.5 * x as f32);
+
+        if input_manager.is_button_down(Button::DPadUp) {
+            camera.move_camera(self.camera_move_speed * dt * -camera.up());
+        } else if input_manager.is_button_down(Button::DPadDown) {
+            camera.move_camera(self.camera_move_speed * dt * camera.up());
         }
     }
 }

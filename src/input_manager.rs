@@ -1,21 +1,28 @@
 use std::collections::HashSet;
 
-use winit::{event::{DeviceEvent, ElementState, KeyEvent, MouseButton, WindowEvent}, keyboard::{KeyCode, PhysicalKey}};
+use sdl2::{controller::{Axis, Button}, event::Event};
+use winit::{event::{ElementState, KeyEvent, MouseButton, WindowEvent}, keyboard::{KeyCode, PhysicalKey}};
 
 pub struct InputManager {
     keys_down: HashSet<KeyCode>,
+    buttons_down: HashSet<Button>,
     left_mouse_down: bool,
     mouse_position: (f64, f64),
     mouse_move: (f64, f64),
+    joy_left: (f64, f64),
+    joy_right: (f64, f64),
 }
 
 impl InputManager {
     pub fn new() -> Self {
         Self {
             keys_down: HashSet::new(),
+            buttons_down: HashSet::new(),
             left_mouse_down: false,
             mouse_position: (0.0, 0.0),
             mouse_move: (0.0, 0.0),
+            joy_left: (0.0, 0.0),
+            joy_right: (0.0, 0.0),
         }
     }
 
@@ -23,35 +30,75 @@ impl InputManager {
         self.left_mouse_down
     }
 
+    pub fn joy_right(&self) -> (f64, f64) {
+        self.joy_right
+    }
+
+    pub fn joy_left(&self) -> (f64, f64) {
+        self.joy_left
+    }
+
     pub fn mouse_move(&self) -> (f64, f64) {
         self.mouse_move
+    }
+
+    pub fn is_button_down(&self, button: Button) -> bool {
+        self.buttons_down.contains(&button)
     }
 
     pub fn is_key_down(&self, key: KeyCode) -> bool {
         self.keys_down.contains(&key)
     }
 
-    pub fn device_update(&mut self, device_event: &DeviceEvent) {
-        match device_event {
-            DeviceEvent::Button { 
-                button, 
-                state 
+    pub fn pre_update(&mut self) {
+        self.mouse_move = (0.0, 0.0);
+    }
+
+    pub fn sdl_update(&mut self, event: &Event) {
+        match event {
+            Event::ControllerAxisMotion {
+                axis: Axis::LeftX,
+                value: val, 
+                ..
             } => {
-                println!("Gamepad button {:?} {:?}", button, state);
+                let val = *val as f64 / i16::MAX as f64;
+                self.joy_left.0 = val;
             },
-            DeviceEvent::Motion { 
-                axis, 
-                value 
+            Event::ControllerAxisMotion {
+                axis: Axis::LeftY,
+                value: val, 
+                ..
             } => {
-                println!("Gamepad axis {:?} {:?}", axis, value);
+                let val = *val as f64 / i16::MAX as f64;
+                self.joy_left.1 = val;
             },
-            _ => {}
+            Event::ControllerAxisMotion {
+                axis: Axis::RightX,
+                value: val, 
+                ..
+            } => {
+                let val = *val as f64 / i16::MAX as f64;
+                self.joy_right.0 = val;
+            },
+            Event::ControllerAxisMotion {
+                axis: Axis::RightY,
+                value: val, 
+                ..
+            } => {
+                let val = *val as f64 / i16::MAX as f64;
+                self.joy_right.1 = val;
+            },
+            Event::ControllerButtonDown { button, .. } => {
+                self.buttons_down.insert(*button);
+            },
+            Event::ControllerButtonUp { button, .. } => {
+                self.buttons_down.remove(button);
+            },
+            _ => (),
         }
     }
 
     pub fn window_update(&mut self, window_event: &WindowEvent, consumed: bool) {
-        self.mouse_move = (0.0, 0.0);
-        
         if consumed {
             self.left_mouse_down = false;
         }
