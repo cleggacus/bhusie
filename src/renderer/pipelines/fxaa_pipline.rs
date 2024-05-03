@@ -102,6 +102,7 @@ pub struct FXAAPipeline {
     pipeline: wgpu::RenderPipeline,
     bind_group: wgpu::BindGroup,
     texture_view_out: wgpu::TextureView,
+    texture_out: wgpu::Texture,
 }
 
 impl FXAAPipeline {
@@ -116,11 +117,11 @@ impl FXAAPipeline {
             mip_level_count: 1,
             sample_count: 1,
             dimension: wgpu::TextureDimension::D2,
-            format: wgpu::TextureFormat::Rgba8Unorm,
+            format: wgpu::TextureFormat::Rgba8UnormSrgb,
             usage: wgpu::TextureUsages::COPY_DST
                 | wgpu::TextureUsages::TEXTURE_BINDING
                 | wgpu::TextureUsages::RENDER_ATTACHMENT
-                | wgpu::TextureUsages::STORAGE_BINDING,
+                | wgpu::TextureUsages::COPY_SRC,
             view_formats: Default::default(),
         });
 
@@ -242,11 +243,16 @@ impl FXAAPipeline {
             pipeline,
             bind_group,
             texture_view_out,
+            texture_out: texture
         }
     }
 
     pub fn output_view(&self) -> &wgpu::TextureView {
         &self.texture_view_out
+    }
+
+    pub fn output_texture(&self) -> &wgpu::Texture {
+        &self.texture_out
     }
 
     pub fn pass(&mut self, encoder: &mut wgpu::CommandEncoder) {

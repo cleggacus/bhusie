@@ -9,8 +9,8 @@ pub struct Camera {
 impl Camera {
     pub fn new() -> Self {
         Self {
-            position: Vector3::new(0.0, -1.60, -20.0),
-            forward: Vector3::new(0.0, 0.08, 1.0),
+            position: Vector3::new(0.0, 0.0, -20.0),
+            forward: Vector3::new(0.0, 0.0, 1.0),
             fov: 1.0,
         }
     }

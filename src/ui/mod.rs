@@ -94,10 +94,15 @@ impl UI {
             egui::TopBottomPanel::top("menu_bar").show(egui_ctx, |ui| {
                 egui::menu::bar(ui, |ui| {
                     ui.menu_button("File", |ui| {
-                        if ui.button("Open").clicked() {
-                            log::info!("Open");
-                        } else if ui.button("Save").clicked() {
-                            log::info!("Save");
+                        if ui.button("Save Image").clicked() {
+                            let path = std::env::current_dir().unwrap();
+
+                            let file = rfd::FileDialog::new()
+                                .add_filter("image", &["png", "jpg", "jpeg"])
+                                .set_directory(path)
+                                .save_file();
+
+                            renderer.save = file.map(|file| file.to_str().unwrap().into());
                         }
                     });
 

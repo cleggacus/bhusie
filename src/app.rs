@@ -61,6 +61,9 @@ impl<'a> App<'a> {
                 } if window_id == self.window.id() => {
                     self.handle_window_event(event, elwt);
                 },
+                Event::DeviceEvent { event, .. } => {
+                    self.input_manager.device_update(&event);
+                }
                 _ => {}
             }
         }).unwrap();
@@ -81,7 +84,7 @@ impl<'a> App<'a> {
             WindowEvent::MouseWheel { .. } |
             WindowEvent::MouseInput { .. } |
             WindowEvent::CursorMoved { .. } => 
-                self.input_manager.update(event, event_response.consumed),
+                self.input_manager.window_update(event, event_response.consumed),
             _ => {}
         }
     }
@@ -97,7 +100,11 @@ impl<'a> App<'a> {
     }
 
     fn render(&mut self) -> Result<(), wgpu::SurfaceError> {
-        self.renderer.render(&mut self.ui, &mut self.scene, self.timer.delta_time().as_secs_f32())
+        let future = async move {
+            self.renderer.render(&mut self.ui, &mut self.scene, self.timer.delta_time().as_secs_f32()).await
+        };
+
+        pollster::block_on(future)
     }
 
     fn handle_redraw_requested(&mut self, elwt: &EventLoopWindowTarget<()>) {

@@ -170,6 +170,17 @@ impl RendererSettings {
                         renderer.ray_details.highlight_interpolation = highlight_interpolation_bool as i32; 
                         ui.end_row(); 
 
+                        ui.label("Step Mode");
+                        ui.checkbox(&mut renderer.step_mode, "checked");
+                        ui.end_row(); 
+
+                        if renderer.step_mode {
+                            ui.label("Step");
+                            if ui.button("Step").clicked() {
+                                renderer.step = true;
+                            }
+                            ui.end_row(); 
+                        }
                     });
 
                     ui.collapsing("OED", |ui| {

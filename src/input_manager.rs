@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use winit::{event::{ElementState, KeyEvent, MouseButton, WindowEvent}, keyboard::{KeyCode, PhysicalKey}};
+use winit::{event::{DeviceEvent, ElementState, KeyEvent, MouseButton, WindowEvent}, keyboard::{KeyCode, PhysicalKey}};
 
 pub struct InputManager {
     keys_down: HashSet<KeyCode>,
@@ -31,7 +31,25 @@ impl InputManager {
         self.keys_down.contains(&key)
     }
 
-    pub fn update(&mut self, window_event: &WindowEvent, consumed: bool) {
+    pub fn device_update(&mut self, device_event: &DeviceEvent) {
+        match device_event {
+            DeviceEvent::Button { 
+                button, 
+                state 
+            } => {
+                println!("Gamepad button {:?} {:?}", button, state);
+            },
+            DeviceEvent::Motion { 
+                axis, 
+                value 
+            } => {
+                println!("Gamepad axis {:?} {:?}", axis, value);
+            },
+            _ => {}
+        }
+    }
+
+    pub fn window_update(&mut self, window_event: &WindowEvent, consumed: bool) {
         self.mouse_move = (0.0, 0.0);
         
         if consumed {
@@ -52,12 +70,12 @@ impl InputManager {
                     position.x,
                     position.y,
                 );
-            }
+            },
             WindowEvent::MouseInput { state, button, .. } => {
                 if *button == MouseButton::Left {
                     self.left_mouse_down = *state == ElementState::Pressed;
                 }
-            }
+            },
             _ => {}
         }
     }

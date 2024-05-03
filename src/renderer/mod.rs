@@ -7,6 +7,7 @@ pub mod material;
 pub mod texture;
 pub mod triangle;
 
+use image::{ImageBuffer, Rgba};
 use wgpu::{util::DeviceExt, PresentMode};
 use winit::window::Window;
 
@@ -25,6 +26,10 @@ pub struct Renderer<'a> {
     screen_pipeline: ScreenPipeline,
 
     pub present_mode: PresentMode,
+    pub step_mode: bool,
+    pub step: bool,
+
+    pub save: Option<String>,
 
     pub fxaa_details: FXAADetails,
     pub fxaa_details_uniform: FXAADetailsUniform,
@@ -72,7 +77,7 @@ impl<'a> Renderer<'a> {
         let (device, queue) = adapter.request_device(
             &wgpu::DeviceDescriptor {
                 label: None,
-                required_features: wgpu::Features::empty(),
+                required_features: wgpu::Features::BGRA8UNORM_STORAGE,
                 required_limits: wgpu::Limits {
                     ..wgpu::Limits::downlevel_defaults()
                         .using_resolution(adapter.limits())
@@ -109,7 +114,7 @@ impl<'a> Renderer<'a> {
         let model_buffer = scene.models.create_buffer(&device);
 
         let ray_details = RayDetails {
-            angle_division_threshold: 0.02,
+            angle_division_threshold: 0.025,
             step_size: 0.1,
             max_iterations: 2000,
             ..RayDetails::default()
@@ -169,9 +174,9 @@ impl<'a> Renderer<'a> {
         // let mut current_res = (39.0, 22.0); // 720p 45
         // let mut current_res = (79.0, 44.0); // 720p 45
         // let mut current_res = (159.0, 89.0); // 720p 45
-        let mut current_res = (8.0, 4.0); // 1080p
-        let ray_multiplier = 4.0;
-        let iters = 5;
+        let mut current_res = (16.0, 9.0); // 1080p
+        let ray_multiplier = 5.0;
+        let iters = 4;
 
         for i in 0..iters {
             log::info!("Loading ray pipeline ({}): {}, {}", i, current_res.0 as u32, current_res.1 as u32);
@@ -211,7 +216,7 @@ impl<'a> Renderer<'a> {
         });
 
 
-        let bloom_pipeline_count = 6;
+        let bloom_pipeline_count = 5;
         let bloom_multiplier = 2.0;
         let mut bloom_pipelines: Vec<BloomPipeline> = Vec::new();
 
@@ -329,6 +334,10 @@ impl<'a> Renderer<'a> {
             bloom_pipelines,
             present_mode,
 
+            step_mode: false,
+            step: true,
+            save: None,
+
             ray_pipelines,
             ray_details,
             ray_details_buffer,
@@ -358,28 +367,30 @@ impl<'a> Renderer<'a> {
         self.surface.configure(&self.device, &self.surface_config);
     }
 
-    pub fn render(&mut self, ui: &mut UI, scene: &mut Scene, dt: f32) -> Result<(), wgpu::SurfaceError> {
+    pub async fn render(&mut self, ui: &mut UI, scene: &mut Scene, dt: f32) -> Result<(), wgpu::SurfaceError> {
         if self.present_mode != self.surface_config.present_mode {
             self.update_present_mode()
         }
 
-        self.camera_uniform.update(&scene.camera);
-        self.black_hole_uniform.update(&scene.black_hole);
-
-        self.ray_details.time += dt;
-        self.ray_details.material_count = scene.materials.size() as i32;
-        self.ray_details.model_count = scene.models.size() as i32;
-
         self.fxaa_details_uniform.update(&self.fxaa_details);
-
-        self.queue.write_buffer(&self.black_hole_buffer, 0, bytemuck::cast_slice(&[self.black_hole_uniform]));
-        self.queue.write_buffer(&self.camera_buffer, 0, bytemuck::cast_slice(&[self.camera_uniform]));
-        self.queue.write_buffer(&self.ray_details_buffer, 0, bytemuck::cast_slice(&[self.ray_details]));
-        self.queue.write_buffer(&self.mix_details_buffer, 0, bytemuck::cast_slice(&[self.mix_details]));
         self.queue.write_buffer(&self.fxaa_details_buffer, 0, bytemuck::cast_slice(&[self.fxaa_details_uniform]));
 
-        scene.models.update_buffer(&self.queue, &self.model_buffer);
-        scene.materials.update_buffer(&self.queue, &self.material_buffer);
+        if self.step {
+            self.camera_uniform.update(&scene.camera);
+            self.black_hole_uniform.update(&scene.black_hole);
+
+            self.ray_details.time += dt;
+            self.ray_details.material_count = scene.materials.size() as i32;
+            self.ray_details.model_count = scene.models.size() as i32;
+
+            self.queue.write_buffer(&self.black_hole_buffer, 0, bytemuck::cast_slice(&[self.black_hole_uniform]));
+            self.queue.write_buffer(&self.camera_buffer, 0, bytemuck::cast_slice(&[self.camera_uniform]));
+            self.queue.write_buffer(&self.ray_details_buffer, 0, bytemuck::cast_slice(&[self.ray_details]));
+            self.queue.write_buffer(&self.mix_details_buffer, 0, bytemuck::cast_slice(&[self.mix_details]));
+
+            scene.models.update_buffer(&self.queue, &self.model_buffer);
+            scene.materials.update_buffer(&self.queue, &self.material_buffer);
+        }
 
         let output = self.surface.get_current_texture()?;
 
@@ -392,19 +403,21 @@ impl<'a> Renderer<'a> {
         });
 
 
-        // compute passes 
-        
-        {
-            let mut compute_pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
-                label: Some("Compute Pass"),
-                timestamp_writes: None,
-            });
+        if self.step {
+            // compute passes 
+            
+            {
+                let mut compute_pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
+                    label: Some("Compute Pass"),
+                    timestamp_writes: None,
+                });
 
-            for rp in &mut self.ray_pipelines {
-                rp.pass(&mut compute_pass);
-            } 
+                for rp in &mut self.ray_pipelines {
+                    rp.pass(&mut compute_pass);
+                } 
 
-            self.sky_pipeline.pass(&mut compute_pass);
+                self.sky_pipeline.pass(&mut compute_pass);
+            }
         }
 
         // render passes 
@@ -417,6 +430,14 @@ impl<'a> Renderer<'a> {
         self.hdr_pipeline.pass(&mut encoder);
         self.fxaa_pipeline.pass(&mut encoder);
 
+        // save?
+
+        let output_buffer = if self.save.is_some() {
+            Some(self.texture_to_output_buffer(&mut encoder))
+        } else {
+            None
+        };
+
         self.screen_pipeline.pass(ScreenPassDescriptor {
             surface_config: &self.surface_config,
             encoder: &mut encoder,
@@ -426,12 +447,82 @@ impl<'a> Renderer<'a> {
             ui,
         });
 
+
         // cleanup and present
         
         self.queue.submit(std::iter::once(encoder.finish()));
         output.present();
 
+        self.step = !self.step_mode;
+
+        // save!
+
+        if let Some(path) = self.save.take() {
+            let output_buffer = output_buffer.unwrap();
+            let buffer_slice = output_buffer.slice(..);
+
+            let (tx, rx) = futures_intrusive::channel::shared::oneshot_channel();
+
+            buffer_slice.map_async(wgpu::MapMode::Read, move |result| {
+                tx.send(result).unwrap();
+            });
+
+            self.device.poll(wgpu::Maintain::Wait);
+
+            rx.receive().await.unwrap().unwrap();
+
+            let data = buffer_slice.get_mapped_range();
+            let texture = self.fxaa_pipeline.output_texture();
+            let mut img = ImageBuffer::<Rgba<u8>, _>::new(texture.width(), texture.height());
+
+            for y in 0..img.height() {
+                for x in 0..img.width() {
+                    let i = (y * (texture.width() / 64 * 64 + 64) + x) as usize * 4;
+                    img.put_pixel(x, y, Rgba([data[i], data[i+1], data[i+2], 255]));
+                }
+            }
+
+            img.save(path).unwrap();
+        }
+
         Ok(())
+    }
+
+    pub fn texture_to_output_buffer(&mut self, encoder: &mut wgpu::CommandEncoder) -> wgpu::Buffer {
+        let texture = self.fxaa_pipeline.output_texture();
+        let u32_size = std::mem::size_of::<u32>() as u32;
+
+        let output_buffer_size = (u32_size * (texture.width() / 64 * 64 + 64) * texture.height()) as wgpu::BufferAddress;
+
+        let output_buffer_desc = wgpu::BufferDescriptor {
+            size: output_buffer_size,
+            usage: wgpu::BufferUsages::COPY_DST
+                | wgpu::BufferUsages::MAP_READ,
+            label: None,
+            mapped_at_creation: false,
+        };
+
+        let output_buffer = self.device.create_buffer(&output_buffer_desc);
+
+        encoder.copy_texture_to_buffer(
+            wgpu::ImageCopyTexture {
+                aspect: wgpu::TextureAspect::All,
+                texture,
+                mip_level: 0,
+                origin: wgpu::Origin3d::ZERO,
+            },
+            wgpu::ImageCopyBuffer {
+                buffer: &output_buffer,
+                layout: wgpu::ImageDataLayout {
+                    offset: 0,
+                    bytes_per_row: Some(u32_size * (texture.width() / 64 * 64 + 64)),
+                    rows_per_image: Some(texture.height()),
+                },
+            },
+            texture.size(),
+        );
+
+        output_buffer
     }
 
     pub fn resize(&mut self, width: u32, height: u32) {
