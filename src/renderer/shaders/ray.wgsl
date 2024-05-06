@@ -361,13 +361,13 @@ fn trace_ray_model(ray: Ray, model_index: i32, t_min: f32, t_max: f32) -> Render
     return closest_render_state;
 }
 
-fn hit_ray(ray: Ray, t_min: f32, t_max: f32, ray_distance: f32, render_triangles: bool) -> RenderState {
+fn hit_ray(ray: Ray, t_min: f32, t_max: f32, ray_distance: f32, render_triangles: bool, render_black_hole: bool) -> RenderState {
     var closest_render_state: RenderState;
     closest_render_state.t = t_max;
 
     let render_state = hit_black_hole(ray, black_hole, t_min, t_max, ray_distance);
 
-    if render_state.hit && render_state.t < closest_render_state.t {
+    if render_state.hit && render_state.t < closest_render_state.t && render_black_hole {
         closest_render_state = render_state;
 
     }
@@ -529,29 +529,30 @@ fn trace_ray(ray: Ray) -> vec4<f32> {
                 step_size = rk_state.h;
             }
 
-	    let curr_distance_to_bh = distance(curr_ray.position, bh_position);
+            let curr_distance_to_bh = distance(curr_ray.position, bh_position);
 
-	    if curr_distance_to_bh < closeset_to_bh {
+            if curr_distance_to_bh < closeset_to_bh {
                 closeset_to_bh = curr_distance_to_bh;
             }
 
             prev_ray.direction = curr_ray.direction;
 
-            closest_render_state = hit_ray(prev_ray, t_min, step_size, ray_distance, false);
+            closest_render_state = hit_ray(prev_ray, t_min, step_size, ray_distance, false, true);
 
             if curr_distance_to_bh > bh_radius {
                 relativity = false;
 		
-    		let feather_width = bh_radius/3.0;
-    		let feather_start = bh_radius-feather_width;
-    		let linear_mix_amount = clamp((closeset_to_bh-feather_start)/feather_width, 0.0, 1.0);
-		let mix_amount = pow(linear_mix_amount, 2.0);
+                let feather_width = bh_radius/3.0;
+                let feather_start = bh_radius-feather_width;
+                let linear_mix_amount = clamp((closeset_to_bh-feather_start)/feather_width, 0.0, 1.0);
 
-    		curr_ray.direction = mix(curr_ray.direction, ray.direction, mix_amount);
+                let mix_amount = pow(linear_mix_amount, 2.0);
+
+                curr_ray.direction = mix(curr_ray.direction, ray.direction, mix_amount);
             }
         } else {
             let ray_distance = distance(ray.position, bh_position);
-            let render_state = hit_ray(curr_ray, t_min, t_max, ray_distance, true);
+            let render_state = hit_ray(curr_ray, t_min, t_max, ray_distance, true, false);
             let hit_sphere_state = hit_sphere(prev_ray, relativity_sphere, t_min, t_max);
 
             if !hit_sphere_state.hit && !render_state.hit {
@@ -573,7 +574,7 @@ fn trace_ray(ray: Ray) -> vec4<f32> {
             hit = true;
         }
 
-        if color_amount < 0.001 {
+        if color_amount < 0.005 {
             break;
         }
     }
@@ -600,7 +601,6 @@ fn hit_black_hole(ray: Ray, black_hole: BlackHole, t_min: f32, t_max: f32, total
         black_hole.position,
         black_hole.normal,
     );
-
 
     let sphere = Sphere(1.0, black_hole.position, vec3<f32>(0.0));
 
@@ -664,29 +664,8 @@ fn hit_black_hole(ray: Ray, black_hole: BlackHole, t_min: f32, t_max: f32, total
     return render_state;
 }
 
-
 fn hit_torus2d(ray: Ray, torus: Torus2D, t_min: f32, t_max: f32) -> RenderState {
-    let plane = Plane(torus.position, torus.normal);
-    let render_state = hit_plane(ray, plane, t_min, t_max);
-
-    if render_state.hit {
-        let intersection = ray.position + ray.direction * render_state.t;
-        let distance_from_center = distance(torus.position, intersection);
-
-        if distance_from_center < torus.inner_radius || distance_from_center > torus.outer_radius {
-            var miss: RenderState;
-            miss.hit = false;
-            miss.t = t_max;
-
-            return miss;
-        }
-    }
-
-    return render_state;
-}
-
-fn hit_plane(ray: Ray, plane: Plane, t_min: f32, t_max: f32) -> RenderState {
-    let normal = plane.normal;
+    let normal = torus.normal;
 
     let denom = dot(normal, ray.direction);
 
@@ -694,7 +673,7 @@ fn hit_plane(ray: Ray, plane: Plane, t_min: f32, t_max: f32) -> RenderState {
     render_state.hit = false;
     render_state.t = t_max;
 
-    let distance = plane.position - ray.position;
+    let distance = torus.position - ray.position;
 
     let t = dot(distance, normal) / denom; 
 
@@ -705,11 +684,16 @@ fn hit_plane(ray: Ray, plane: Plane, t_min: f32, t_max: f32) -> RenderState {
             render_state.normal = normal;
         }
 
-        render_state.color = vec3<f32>(1.0);
-        render_state.opacity = 1.0;
-        render_state.t = t;
-        render_state.hit = true;
-        return render_state;
+        let intersection = ray.position + ray.direction * t;
+        let distance_from_center = distance(torus.position, intersection);
+
+        if distance_from_center >= torus.inner_radius && distance_from_center <= torus.outer_radius {
+            render_state.color = vec3<f32>(1.0);
+            render_state.opacity = 1.0;
+            render_state.t = t;
+            render_state.hit = true;
+            return render_state;
+        }
     }
 
     return render_state;

@@ -135,7 +135,7 @@ impl<'a> App<'a> {
     fn update(&mut self) {
         self.timer.update();
         self.ui.update(self.timer.delta_time(), self.window, &mut self.scene, &mut self.renderer);
-        self.scene.update(self.timer.delta_time(), &self.input_manager);
+        self.scene.update(&self.timer, &self.input_manager);
     }
 
     fn resize(&mut self, new_size: PhysicalSize<u32>) {

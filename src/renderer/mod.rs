@@ -174,8 +174,8 @@ impl<'a> Renderer<'a> {
         // let mut current_res = (39.0, 22.0); // 720p 45
         // let mut current_res = (79.0, 44.0); // 720p 45
         // let mut current_res = (159.0, 89.0); // 720p 45
-        let mut current_res = (16.0, 9.0); // 1080p
-        let ray_multiplier = 5.0;
+        let mut current_res = (10.0, 6.0); // 1080p
+        let ray_multiplier = 6.0;
         let iters = 4;
 
         for i in 0..iters {

@@ -1,7 +1,7 @@
 use sdl2::controller::Button;
 use winit::keyboard::KeyCode;
 
-use crate::{input_manager::InputManager, renderer::{material::MaterialArrayBuffer, model, triangle::ModelArrayBuffer}};
+use crate::{input_manager::InputManager, renderer::{material::MaterialArrayBuffer, model, triangle::ModelArrayBuffer}, timer::Timer};
 
 use self::{blackhole::BlackHole, camera::Camera};
 
@@ -36,8 +36,8 @@ impl Scene {
         }
     }
 
-    pub fn update(&mut self, delta_time: instant::Duration, input_manager: &InputManager) {
-        let dt = delta_time.as_secs_f32();
+    pub fn update(&mut self, timer: &Timer, input_manager: &InputManager) {
+        let dt = timer.delta_time().as_secs_f32();
         let camera = &mut self.camera;
 
         if input_manager.is_key_down(KeyCode::KeyW) {
@@ -79,6 +79,10 @@ impl Scene {
         } else if input_manager.is_button_down(Button::DPadDown) {
             camera.move_camera(self.camera_move_speed * dt * camera.up());
         }
+
+
+        let time = timer.total_time().as_secs_f32() * 0.25;
+        self.models.get_mut(0).unwrap().position.x = time.sin() * 70.0;
     }
 }
 
