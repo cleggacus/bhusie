@@ -118,7 +118,8 @@ struct BlackHole {
     show_disk_texture: i32,
     normal: vec3<f32>,
     show_red_shift: i32,
-    rotation_matrix: mat3x3<f32>
+    rotation_matrix: mat3x3<f32>,
+    feather_amount: f32,
 }
 
 struct Sphere {
@@ -542,7 +543,7 @@ fn trace_ray(ray: Ray) -> vec4<f32> {
             if curr_distance_to_bh > bh_radius {
                 relativity = false;
 		
-                let feather_width = bh_radius/3.0;
+                let feather_width = bh_radius*black_hole.feather_amount;
                 let feather_start = bh_radius-feather_width;
                 let linear_mix_amount = clamp((closeset_to_bh-feather_start)/feather_width, 0.0, 1.0);
 

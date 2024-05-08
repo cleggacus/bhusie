@@ -114,7 +114,7 @@ impl<'a> Renderer<'a> {
         let model_buffer = scene.models.create_buffer(&device);
 
         let ray_details = RayDetails {
-            angle_division_threshold: 0.02,
+            angle_division_threshold: 0.01,
             step_size: 0.1,
             max_iterations: 2000,
             ..RayDetails::default()
@@ -174,8 +174,8 @@ impl<'a> Renderer<'a> {
         // let mut current_res = (39.0, 22.0); // 720p 45
         // let mut current_res = (79.0, 44.0); // 720p 45
         // let mut current_res = (159.0, 89.0); // 720p 45
-        let mut current_res = (10.0, 6.0); // 1080p
-        let ray_multiplier = 6.0;
+        let mut current_res = (72.0, 41.0); // 1080p
+        let ray_multiplier = 3.0;
         let iters = 4;
 
         for i in 0..iters {

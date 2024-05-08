@@ -21,7 +21,7 @@ impl Scene {
     pub fn new() -> Self {
         let mut models = ModelArrayBuffer::new();
 
-        model::load_model("./src/renderer/objects/lucy.obj", 
+        model::load_model("./src/renderer/objects/lucy_small.obj", 
             "Lucy",
             &mut models,
         );

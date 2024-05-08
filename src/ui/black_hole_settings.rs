@@ -53,6 +53,10 @@ impl BlackHoleSettings {
                         ui.add(egui::DragValue::new(&mut scene.black_hole.relativity_sphere_radius).clamp_range(0.0..=1000.0).speed(0.01));
                         ui.end_row(); 
 
+                        ui.label("Relativity Feather:");
+                        ui.add(egui::DragValue::new(&mut scene.black_hole.feather_amount).clamp_range(0.0..=1.0).speed(0.01));
+                        ui.end_row(); 
+
                         ui.label("Show Disk Texture");
                         let mut show_disk_texture = scene.black_hole.show_disk_texture != 0;
                         ui.checkbox(&mut show_disk_texture, "checked");

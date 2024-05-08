@@ -9,6 +9,7 @@ pub struct BlackHole {
     pub relativity_sphere_radius: f32,
     pub show_disk_texture: i32,
     pub show_red_shift: i32,
+    pub feather_amount: f32,
 }
 
 impl BlackHole {
@@ -22,6 +23,7 @@ impl BlackHole {
             relativity_sphere_radius: 25.0,
             show_disk_texture: 1,
             show_red_shift: 1,
+            feather_amount: 0.3
         }
     }
 }
@@ -44,7 +46,8 @@ pub struct BlackHoleUniform {
     normal: [f32; 3],
     show_red_shift: i32,
     rotation_matrix: [f32; 12],
-    pad: [i32; 9],
+    feather_amount: f32,
+    pad: [i32; 8],
 }
 
 impl BlackHoleUniform {
@@ -59,7 +62,8 @@ impl BlackHoleUniform {
             normal: [0.0; 3],
             show_red_shift: 1,
             rotation_matrix: [0.0; 12],
-            pad: [0; 9],
+            feather_amount: 0.0,
+            pad: [0; 8],
         }
     }
 
@@ -71,6 +75,7 @@ impl BlackHoleUniform {
         self.relativity_sphere_radius = black_hole.relativity_sphere_radius;
         self.show_disk_texture = black_hole.show_disk_texture;
         self.show_red_shift = black_hole.show_red_shift;
+        self.feather_amount = black_hole.feather_amount;
 
         let q_rotate = Quaternion::from(Euler::new(
             Rad(black_hole.accretion_disk_rotation.x),
