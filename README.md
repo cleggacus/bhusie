@@ -1,5 +1,5 @@
 <h1 align="center">
-    Real-Time Black Hole Ray Tracer
+    Black hole universal simulation interface engine
 </h1>
 
 <p align="center">
