@@ -48,10 +48,6 @@ impl InputManager {
         self.keys_down.contains(&key)
     }
 
-    pub fn pre_update(&mut self) {
-        self.mouse_move = (0.0, 0.0);
-    }
-
     pub fn gilrs_update(&mut self, event: &gilrs::EventType) {
         match event {
             gilrs::EventType::AxisChanged(gilrs::Axis::LeftStickX, amount, _) => {
@@ -93,6 +89,8 @@ impl InputManager {
         if consumed {
             self.left_mouse_down = false;
         }
+
+        self.mouse_move = (0.0, 0.0);
 
         match window_event {
             WindowEvent::KeyboardInput { event, .. } => self.update_keyboard(event),

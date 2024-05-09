@@ -115,7 +115,7 @@ impl<'a> Renderer<'a> {
 
         let ray_details = RayDetails {
             angle_division_threshold: 0.02,
-            step_size: 0.25,
+            step_size: 0.15,
             max_iterations: 2000,
             ..RayDetails::default()
         };

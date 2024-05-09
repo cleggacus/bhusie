@@ -6,7 +6,7 @@
     A black hole ray tracer which can render in real time with meshes
 </p>
 
-![Imgur](https://i.imgur.com/bGjeNHI.png)
+![Imgur](https://i.imgur.com/ukPxaRV.png)
 
 This project is a real-time black hole raytracer. It uses multiple techniques such as an adative grid to reduce calculations, bvh to render meshes, a relativity sphere algorithm to allow the mesh to be rendered in the scene with the black hole and many adjustable settings such as integration methods and parameters, object settings, black hole settings and more.
 
@@ -33,7 +33,8 @@ cargo build --release
     - [x] accretion disk texture generation
     - [x] accretion red / blue shift
     - [x] relativity sphere
-    - [ ] multiple black holes 
+        - [x] feathering
+    - [ ] multiple black holes
 - [x] acceleration structures
     - [x] axis aligned bounding box
     - [x] bounding volume hierarchy
@@ -47,7 +48,17 @@ cargo build --release
 - [x] egui intergration
 
 
+## UI (with egui)
+
+The settings windows are all under menu > view.
+Save a render under menu > save.
+Full screen under menu > window > fullscreen or f11
+
+![Imgur](https://i.imgur.com/TDLXCFW.png)
+
+
 ## Pipeline
 The general flow of render passes is shown in the image below.
+> Note: there are more passes now and this just demonstrates the ray and bloom passes.
 
 ![Imgur](https://i.imgur.com/JxbeT6H.png)

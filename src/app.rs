@@ -58,7 +58,6 @@ impl<'a> App<'a> {
 
     pub fn run(&mut self, event_loop: EventLoop<()>) {
         event_loop.run(move |event, elwt| {
-            self.input_manager.pre_update();
 
             while let Some(gilrs::Event { event, .. }) = self.gilrs.next_event() {
                 self.input_manager.gilrs_update(&event);
