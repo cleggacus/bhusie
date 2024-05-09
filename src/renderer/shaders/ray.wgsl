@@ -399,7 +399,7 @@ struct RKState {
 }
 
 fn f(rayPos: vec3<f32>, h2: f32, dist: f32) -> vec3<f32> {
-    return -1.5 * h2 * (rayPos-black_hole.position) / pow(pow(dist, 2.0), 2.5);
+    return -1.5 * h2 * (rayPos-black_hole.position) / pow(dist, 5.0);
 }
 
 fn next_ray_rk(rk_state_in: RKState) -> RKState {

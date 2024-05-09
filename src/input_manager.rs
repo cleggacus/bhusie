@@ -1,28 +1,26 @@
 use std::collections::HashSet;
-
-use sdl2::{controller::{Axis, Button}, event::Event};
 use winit::{event::{ElementState, KeyEvent, MouseButton, WindowEvent}, keyboard::{KeyCode, PhysicalKey}};
 
 pub struct InputManager {
     keys_down: HashSet<KeyCode>,
-    buttons_down: HashSet<Button>,
     left_mouse_down: bool,
     mouse_position: (f64, f64),
     mouse_move: (f64, f64),
-    joy_left: (f64, f64),
-    joy_right: (f64, f64),
+    joy_left: (f32, f32),
+    joy_right: (f32, f32),
+    dpad: (f32, f32),
 }
 
 impl InputManager {
     pub fn new() -> Self {
         Self {
             keys_down: HashSet::new(),
-            buttons_down: HashSet::new(),
             left_mouse_down: false,
             mouse_position: (0.0, 0.0),
             mouse_move: (0.0, 0.0),
             joy_left: (0.0, 0.0),
             joy_right: (0.0, 0.0),
+            dpad: (0.0, 0.0),
         }
     }
 
@@ -30,20 +28,20 @@ impl InputManager {
         self.left_mouse_down
     }
 
-    pub fn joy_right(&self) -> (f64, f64) {
+    pub fn joy_right(&self) -> (f32, f32) {
         self.joy_right
     }
 
-    pub fn joy_left(&self) -> (f64, f64) {
+    pub fn joy_left(&self) -> (f32, f32) {
         self.joy_left
+    }
+
+    pub fn dpad(&self) -> (f32, f32) {
+        self.dpad
     }
 
     pub fn mouse_move(&self) -> (f64, f64) {
         self.mouse_move
-    }
-
-    pub fn is_button_down(&self, button: Button) -> bool {
-        self.buttons_down.contains(&button)
     }
 
     pub fn is_key_down(&self, key: KeyCode) -> bool {
@@ -54,47 +52,40 @@ impl InputManager {
         self.mouse_move = (0.0, 0.0);
     }
 
-    pub fn sdl_update(&mut self, event: &Event) {
+    pub fn gilrs_update(&mut self, event: &gilrs::EventType) {
         match event {
-            Event::ControllerAxisMotion {
-                axis: Axis::LeftX,
-                value: val, 
-                ..
-            } => {
-                let val = *val as f64 / i16::MAX as f64;
-                self.joy_left.0 = val;
+            gilrs::EventType::AxisChanged(gilrs::Axis::LeftStickX, amount, _) => {
+                self.joy_left.0 = *amount;
             },
-            Event::ControllerAxisMotion {
-                axis: Axis::LeftY,
-                value: val, 
-                ..
-            } => {
-                let val = *val as f64 / i16::MAX as f64;
-                self.joy_left.1 = val;
+            gilrs::EventType::AxisChanged(gilrs::Axis::LeftStickY, amount, _) => {
+                self.joy_left.1 = *amount;
             },
-            Event::ControllerAxisMotion {
-                axis: Axis::RightX,
-                value: val, 
-                ..
-            } => {
-                let val = *val as f64 / i16::MAX as f64;
-                self.joy_right.0 = val;
+            gilrs::EventType::AxisChanged(gilrs::Axis::RightStickX, amount, _) => {
+                self.joy_right.0 = *amount;
             },
-            Event::ControllerAxisMotion {
-                axis: Axis::RightY,
-                value: val, 
-                ..
-            } => {
-                let val = *val as f64 / i16::MAX as f64;
-                self.joy_right.1 = val;
+            gilrs::EventType::AxisChanged(gilrs::Axis::RightStickY, amount, _) => {
+                self.joy_right.1 = *amount;
+
             },
-            Event::ControllerButtonDown { button, .. } => {
-                self.buttons_down.insert(*button);
+            gilrs::EventType::AxisChanged(gilrs::Axis::DPadX, amount, _) => {
+                self.dpad.0 = *amount;
             },
-            Event::ControllerButtonUp { button, .. } => {
-                self.buttons_down.remove(button);
+            gilrs::EventType::AxisChanged(gilrs::Axis::DPadY, amount, _) => {
+                self.dpad.1 = *amount;
             },
-            _ => (),
+            gilrs::EventType::ButtonChanged(gilrs::Button::DPadLeft, amount, _) => {
+                self.dpad.0 = -1.0 * amount;
+            },
+            gilrs::EventType::ButtonChanged(gilrs::Button::DPadRight, amount, _) => {
+                self.dpad.0 = 1.0 * amount;
+            },
+            gilrs::EventType::ButtonChanged(gilrs::Button::DPadUp, amount, _) => {
+                self.dpad.1 = -1.0 * amount;
+            },
+            gilrs::EventType::ButtonChanged(gilrs::Button::DPadDown, amount, _) => {
+                self.dpad.1 = 1.0 * amount;
+            },
+            _ => {}
         }
     }
 

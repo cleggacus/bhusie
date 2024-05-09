@@ -16,11 +16,11 @@ impl BlackHole {
     pub fn new() -> Self {
         Self {
             position: Vector3::zero(),
-            accretion_disk_rotation: Vector3::new(0.15, 0.0, 0.2),
+            accretion_disk_rotation: Vector3::new(0.15, 0.0, 0.25),
             accretion_disk_inner: 2.0,
             accretion_disk_outer: 10.0,
             rotation_speed: 1.0,
-            relativity_sphere_radius: 25.0,
+            relativity_sphere_radius: 20.0,
             show_disk_texture: 1,
             show_red_shift: 1,
             feather_amount: 0.3

@@ -33,9 +33,9 @@ pub fn load_model(
         }
 
         for i in 0..m.mesh.positions.len() / 3 {
-            let p1 = m.mesh.positions[i * 3];
-            let p2 = m.mesh.positions[i * 3 + 1] * -1.0;
-            let p3 = m.mesh.positions[i * 3 + 2];
+            let p1 = m.mesh.positions[i * 3] * 0.5;
+            let p2 = m.mesh.positions[i * 3 + 1] * -0.5;
+            let p3 = m.mesh.positions[i * 3 + 2] * 0.5;
 
             model.add_vertex([p1, p2, p3, 0.0]);
         }

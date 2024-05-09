@@ -35,11 +35,6 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     let x = 0.005;
     let y = 0.005;
 
-    // Take 9 samples around current texel:
-    // a - b - c
-    // d - e - f
-    // g - h - i
-    // === ('e' is the current texel) ===
     let a = textureSample(t_diffuse, s_diffuse, vec2<f32>(in.tex_coords.x - x, in.tex_coords.y + y)).rgb;
     let b = textureSample(t_diffuse, s_diffuse, vec2<f32>(in.tex_coords.x,     in.tex_coords.y + y)).rgb;
     let c = textureSample(t_diffuse, s_diffuse, vec2<f32>(in.tex_coords.x + x, in.tex_coords.y + y)).rgb;
@@ -49,10 +44,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     let g = textureSample(t_diffuse, s_diffuse, vec2<f32>(in.tex_coords.x - x, in.tex_coords.y - y)).rgb;
     let h = textureSample(t_diffuse, s_diffuse, vec2<f32>(in.tex_coords.x,     in.tex_coords.y - y)).rgb;
     let i = textureSample(t_diffuse, s_diffuse, vec2<f32>(in.tex_coords.x + x, in.tex_coords.y - y)).rgb;
-    // Apply textureLoad(t_diffuse, vec2<i32>(weighted distribution, by using a 3x3 tent filter:
-    //  1   | 1 2 1 |
-    // -- * | 2 4 2 |
-    // 16   | 1 2 1 |
+
     var upsample = e*4.0;
     upsample += (b+d+f+h)*2.0;
     upsample += (a+c+g+i);

@@ -1,4 +1,3 @@
-use sdl2::controller::Button;
 use winit::keyboard::KeyCode;
 
 use crate::{input_manager::InputManager, renderer::{material::MaterialArrayBuffer, model, triangle::ModelArrayBuffer}, timer::Timer};
@@ -21,7 +20,7 @@ impl Scene {
     pub fn new() -> Self {
         let mut models = ModelArrayBuffer::new();
 
-        model::load_model("./src/renderer/objects/lucy_small.obj", 
+        model::load_model("./src/renderer/objects/lucy.obj", 
             "Lucy",
             &mut models,
         );
@@ -66,23 +65,19 @@ impl Scene {
         }
 
         let (x, y) = input_manager.joy_right();
-        let yaw = x as f32 * self.camera_rotate_speed * dt * 10.0;
-        let pitch = -y as f32 * self.camera_rotate_speed * dt * 10.0;
+        let yaw = x * self.camera_rotate_speed * dt * 10.0;
+        let pitch = y * self.camera_rotate_speed * dt * 10.0;
         camera.rotate_camera(yaw, pitch);
 
         let (x, y) = input_manager.joy_left();
-        camera.move_camera(self.camera_move_speed * dt * camera.forward() * 1.5 * -y as f32);
-        camera.move_camera(self.camera_move_speed * dt * camera.right() * 1.5 * x as f32);
+        camera.move_camera(self.camera_move_speed * dt * camera.forward() * 1.5 * y);
+        camera.move_camera(self.camera_move_speed * dt * camera.right() * 1.5 * x);
 
-        if input_manager.is_button_down(Button::DPadUp) {
-            camera.move_camera(self.camera_move_speed * dt * -camera.up());
-        } else if input_manager.is_button_down(Button::DPadDown) {
-            camera.move_camera(self.camera_move_speed * dt * camera.up());
-        }
+        let (_, y) = input_manager.dpad();
+        camera.move_camera(self.camera_move_speed * dt * camera.up() * y);
 
-
-        let time = timer.total_time().as_secs_f32() * 0.25;
-        self.models.get_mut(0).unwrap().position.x = time.sin() * 70.0;
+        // let time = timer.total_time().as_secs_f32() * 0.25;
+        // self.models.get_mut(0).unwrap().position.x = time.sin() * 70.0;
     }
 }
 
